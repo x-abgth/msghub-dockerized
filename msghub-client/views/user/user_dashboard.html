@@ -1,0 +1,691 @@
+{{ template "header_part" . }}
+
+<style type="text/css">
+	#dashboard-chat-part-header-image-wrapper{
+		height: 50px;
+		width: 50px;
+		overflow: hidden;
+		border-radius: 50%;
+	}
+
+	#dashboard-chat-part-header-image-wrapper img{
+		border-radius: 50%;
+		object-position: center;
+		object-fit: cover;
+	}
+
+	/* FOR MESSAGE BUBBLES */
+	.chat-time{
+		font-size: 0.7rem;
+	}
+
+	.user-chat-msg-field div{
+		margin-left: auto;
+	}	
+
+	.user-chat-msg-field div label.chat-time {
+		font-size: 0.7rem;
+	}
+
+	.user-chat-msg-field div i{
+		font-size: 0.7rem;
+	}
+
+	div.create-group-image{
+		height: 30vh !important;
+	}
+
+	div.create-group-image img{
+		height: 30vh !important;
+	}
+
+	.input-row input[type="text"], .input-row textarea{
+		width: 100%;
+		border: none;
+		border-bottom: 1px solid #757575;
+	}
+
+	.input-row textarea{
+		max-height: 100px;
+		min-height: 100px;
+	}
+
+	#imageUpload
+	{
+		display: none;
+	}
+
+	#profileImage
+	{
+		cursor: pointer;
+		object-fit: cover;
+		object-position: center;
+	}
+
+	#profile-container {
+		height: 30vh !important;
+		width: 30vh !important;
+		overflow: hidden;
+		-webkit-border-radius: 50%;
+		-moz-border-radius: 50%;
+		-ms-border-radius: 50%;
+		-o-border-radius: 50%;
+		border-radius: 50%;
+		overflow: hidden;
+	}
+
+	#dashboard-create-group-body form{
+		width: 80%;
+	}
+
+	#dashboard-create-group-body form label.error {
+		width: 100%;
+		text-align: left;
+		color: red;
+	}
+
+	#dashboard-create-group-body form button{
+		width: 70%;
+		background: #00E0FF;
+		color: white;
+		font-weight: bold;
+		border-radius: 15px;
+		outline: none;
+		border: none;
+	}
+
+	.welcome-chat h6, .welcome-chat p{
+		text-align: center;
+		color: black;
+		-webkit-user-select: none; /* Safari */
+		-ms-user-select: none; /* IE 10 and IE 11 */
+		user-select: none; /* Standard syntax */
+	}
+
+	.welcome-chat p{
+		width: 70%;
+	}
+
+	#profile-top-part div{
+		height: 20em;
+		width:  20em;
+		overflow: hidden;
+		border-radius: 50%;
+	}
+
+	#profile-top-part div img {
+		height: 20em;
+		border-radius: 50%;
+		object-position: center;
+		object-fit: cover;
+	}
+
+	#profile-top-part h4, #profile-top-part p {
+		text-align: center;
+	}
+
+	#profile-about-part {
+		font-size: 1.3em;
+	}
+
+	#dashboard-user-details-body button{
+		width: 100%;
+		background: transparent;
+		border: none;
+		outline: none;
+		color: red;
+		font-size: 1.2em;
+		text-align: left;
+		cursor: pointer;	
+	}
+
+	#dashboard-user-details-body button:hover{
+		background: #cccccc30;
+	}
+
+	#dashboard-group-details-header {
+		position: relative;
+	}
+
+	#dashboard-group-details-body {
+		position: relative;
+		height: 90%;
+		overflow-y: auto !important;
+	}
+
+	#leaveGroupBt {
+		position: sticky;
+		width: 100%;
+		left: 5px;
+		right: 5px;
+		bottom: 5px;
+		border: none;
+		background: red;
+		color: white;
+		font-weight: bold;
+		border-radius: 10px;
+	}
+
+	#ban-msg {
+		width: 100%;
+		text-align: center;
+		background-color: #FF333390;
+		color: white;
+		display: none;
+	}
+
+	#ban-msg.active {
+		display: block;
+	}
+
+	#ban-msg span{
+		font-weight: bold;
+	}
+
+	.group-member-dp-wrapper{
+		height: 3.5rem;
+		width: 3.5rem;
+		border-radius: 50%;
+		background-color: #ffffff50;
+		color: white;
+		overflow: hidden;
+	}
+
+	.group-member-dp-wrapper img{
+		height: 3.5rem;
+		width: 3.5rem;
+		border-radius: 50%;
+		object-fit: cover;
+		object-position: center;
+	}
+
+	#member-name {
+		font-size: 0.8em;
+	}
+	
+	#member-phone {
+		font-size: 0.8em;
+	}
+
+	#member-status{
+		font-size: 0.8em;
+	}
+	
+	#member-status.admin-tagged {
+		background: #98fb9880;
+		border-radius: 5px;
+		border: 1px solid #008000;
+		color: #008000;
+		font-size: 0.8em;
+	}
+
+	.typing{
+		color: green;
+	}
+
+	#imageChatTag {
+		width:300px;
+		border-radius: 15px;
+		object-fit: cover;
+		object-position: center;
+	}
+
+	.group-second-user-id{
+		font-size: 0.9em;
+	}
+
+	#manageGroupMembersBt{
+		background: blue;
+		border-radius: 10px;
+		color: white;
+		text-decoration: none;
+		font-weight: bold;
+	}
+
+	.story-circle {
+		border: 3px solid #ccc;
+	}
+
+	.story-circle.story-unseen{
+		border: 3px solid #00E0FF;
+	}
+
+	#vertical-separator{
+		height: 100%;
+		width: 0.5px;
+		background: #ccc;
+	}
+
+	.blackout-bg {
+		position: absolute;
+		top: 0;
+		height: 100vh;
+		background-color: rgba(0,0,0,.9);
+		z-index: 100;
+	}
+
+	#story-nav{
+		position: absolute;
+		top: 0;
+		height: 70px;
+		width: 100%;
+		z-index: 7;
+	}
+
+	#newMessageIndicator{
+		background: #00E0FF;
+		height: 8px;
+		width: 10px;
+		border-radius: 50%;
+		border: none;
+	}
+
+	.story-viewer-list{
+		position: absolute;
+		top: 100%;
+		width: 100%;
+		min-height: 30vh;
+		background: white;
+		z-index: 200;
+	}
+
+</style>
+
+<section class="overflow-hidden">
+	<div id="chatImgViewer" class="blackout-bg w-100 d-none justify-content-center">
+		<nav id="story-nav" class="d-flex align-items-center px-4 py-2 mt-2">
+			<a href="javascript:closeImageChat()" id="chatImageViewcloseBt" class="d-flex justify-content-center align-items-center btn btn-danger"><i class="material-icons" style="font-size:28px">close</i></a>
+		</nav>
+		<img id="imageChatViewed" class="img-fluid" style="pointer-events: none; z-index: 5; width: 100%; object-fit: cover; object-position: center;" alt="The image format might not be supporting on your browser!">
+	</div>
+	<div id="theStorySection" class="blackout-bg w-100 d-none justify-content-center">
+		<nav id="story-nav" class="d-flex align-items-center px-4 py-2 mt-2">
+			<!-- Close story sec bt -->
+			<a href="/user/dashboard" class="d-flex justify-content-center align-items-center btn btn-danger"><i class="material-icons" style="font-size:28px">close</i></a>
+			<div class="d-flex flex-column justify-content-start ms-5" style="color: white;">
+				<label><strong style="font-size: 1.2em;" id="story-u-name"></strong></label>
+				<label  id="story-exp-time"></label>
+			</div>
+			<div id="story-del-dropdown" class="dropdown ms-auto">
+				<button class="btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border: none;">
+					<svg width="25" height="27" fill="currentColor" class="bi bi-three-dots-vertical text-white" viewBox="0 0 16 16">
+						<path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+					</svg>
+				</button>
+				<ul class="dropdown-menu dropdown-menu-white" style="min-width: 150px !important; transform: translate(-50%, 0) scale(1);">
+					<li><a id="story-del" class="py-2 px-4 dropdown-item text-danger">Delete</a></li>
+				</ul>
+			</div>
+		</nav>
+		<img id="story-img" class="img-fluid" style="pointer-events: none; z-index: 5; max-height: 100vh; max-width: 100%; object-fit: cover; object-position: center;" alt="The image format might not be supporting on your browser!">
+		{{ if .UserStory.Viewers }}
+		<div class="story-viewer-list p-5 d-flex flex-column justify-content-start">
+			<h4>Viewers&nbsp;&nbsp;<span style="color: #ccc; font-weight: normal; font-size: 0.7em" ><i class='fas fa-eye'></i>&nbsp;{{ .UserStory.ViewerCount }}</span></h4>
+			<div style="height: 2px; background: #00E0FF; border: none; border-radius: 2px;" class="col-12 col-sm-8 col-md-3 mb-3"></div>
+			{{ range .UserStory.Viewers }}
+				<div class="d-flex justify-content-center align-items-end mb-2 p-3 bg-white recent-chat-card">
+					<div class="recent-chat-dp-wrapper">
+						{{ if .UserAvatarUrl }}
+							<img class="img-fluid" src="{{ .UserAvatarUrl }}" alt="user profile picture">
+						{{ else }}
+							<img src="../../assets/images/user.png" alt="user profile picture">
+						{{ end }}
+					</div>
+					<div class="w-100 d-flex flex-column px-3 mx-3">
+						<label>{{ .UserName }}</label>
+						<label class="members-page-about">+91&nbsp;{{ .UserPhone }}</label>
+					</div>
+				</div>
+			{{ end }}
+		</div>
+		{{ end }}
+	</div>
+	<nav class="msghub-nav navbar navbar-dark justify-content-between py-3 px-2 px-md-5">
+		<a class="navbar-brand" href="/user/dashboard"><strong>MSGHUB</strong></a>
+		<form class="d-none d-md-block col-md-7 form-inline d-flex">
+			<input class="form-control col-md-7 mr-sm-2" type="search" placeholder="Search here ..." aria-label="Search">
+		</form>
+		<div class="col-5 col-md-3 user-dashboard-nav-right-group d-flex align-items-center justify-content-between">
+			<a href="/user/dashboard/user-profile">
+				<div class="d-none d-md-block user-dashboard-nav-profile-pic-wrapper rounded-circle">
+					{{ if .UserDetails.UserAvatarUrl }}
+					<img class="img-fluid" class="profile-img-icon" src="{{ .UserDetails.UserAvatarUrl }}" alt="User profile picture" style="object-fit: cover; object-position: center;">
+					{{ else }}
+					<img class="profile-img-icon" src="../../assets/images/user.png" alt="No profile picture">
+					{{ end }}	
+				</div>	
+			</a>
+			<a href="/user/dashboard/people"><i style='font-size:24px; color: white;' class="material-icons">people</i></a>
+			<div class="dropdown">
+				<button class="btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border: none;">
+					<svg width="25" height="27" fill="currentColor" class="bi bi-three-dots-vertical text-white" viewBox="0 0 16 16">
+						<path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+					</svg>
+				</button>
+				<ul class="dropdown-menu dropdown-menu-white" style="min-width: 150px !important; transform: translate(-50%, 0) scale(1);">
+					<li><a class="py-2 px-4 dropdown-item" onclick="openCreateGroup()">Create Group</a></li>
+					<li><a class="py-2 px-4 dropdown-item" href="/user/dashboard/about-page">About</a></li>
+					<li><a class="py-2 px-4 dropdown-item text-danger" onclick="deleteUserAccount()">Delete Account</a></li>
+					<li><a href="/user/logout" class="py-2 px-4 dropdown-item text-danger">Logout</a></li>
+				</ul>
+			</div>
+			<form id="formToUploadStory" method="POST" action="/user/dashboard/add-story/{{ .UserPhone }}" enctype="multipart/form-data">
+				<input id="storyUpload" type="file" name="story_photo" placeholder="Photo" required="" capture hidden>
+			</form>
+		</div>
+	</nav>
+	<div class="dashboard-content-wrapper d-flex h-100">
+		<div class="user-dashboard-left-col d-none d-md-block col-md-5 col-lg-4 h-100 d-flex flex-column">
+			<div class="user-dashboard-top-sec story-sec py-2 px-4 d-flex align-items-center">
+				{{ if .UserStory.StoryImg }}
+				<a href="javascript:openStory('{{ .UserStory.UserPhone }}', '{{ .UserStory.UserName }}', '{{ .UserStory.Expiration }}', '{{ .UserStory.StoryImg }}');">
+					<div class="story-circle user-story-sec-image-wrapper mx-2">
+						{{ if .UserStory.UserAvatar }}
+						<img src="{{ .UserStory.UserAvatar }}" alt="User profile picture" style="object-fit: cover; object-position: center;">
+						{{ else }}
+						<img src="../../assets/images/user.png" alt="user profile picture">
+						{{ end }}
+					</div>
+				</a>
+				<div id="vertical-separator" class="m-2"></div>
+				{{ else }}
+				<a onclick="addStoryImage()">
+					<div class="user-story-sec-image-wrapper">
+						{{ if .UserDetails.UserAvatarUrl }}
+						<img src="{{ .UserDetails.UserAvatarUrl }}" alt="User profile picture" style="object-fit: cover; object-position: center;">
+						{{ else }}
+						<img src="../../assets/images/user.png" alt="user profile picture">
+						{{ end }}
+					</div>
+				</a>
+				<div id="vertical-separator" class="m-2"></div>
+				<i class='fas fa-plus-circle' style="font-size: 1.2rem; color: white; position: relative; bottom: -25%; left: -6%; z-index: 10;"></i>
+				{{ end }}
+				{{ range .StoryList }}
+				<a href="javascript:openStory('{{ .UserPhone }}', '{{ .UserName }}', '{{ .Expiration }}', '{{ .StoryImg }}');">
+					{{ if .IsViewed }}
+					<div class="story-circle user-story-sec-image-wrapper mx-2">
+					{{ else }}
+					<div class="story-circle story-unseen user-story-sec-image-wrapper mx-2">
+					{{ end }}
+						{{ if .UserAvatar }}
+						<img src="{{ .UserAvatar }}" alt="User profile picture" style="object-fit: cover; object-position: center;">
+						{{ else }}
+						<img src="../../assets/images/user.png" alt="user profile picture">
+						{{ end }}
+					</div>
+				</a>
+				{{ end }}
+			</div>
+			<div class="p-3 h-100 recent-chat-bg">
+				{{ if .RecentChatList }}
+				<p class="mb-3" style="font-size: 1.2em; font-weight: 500;">Recent chats</p>
+				{{ range .RecentChatList }}
+				{{ if .IsGroup }}
+				<a href="javascript:startGroupSocketConnection('{{ .Content.Id }}');">
+					{{ else }}
+					{{ if .IsBlocked }}
+					<a href="javascript:bannedUser('{{ .Content.Id }}');">
+						{{ else }}
+						<a href="javascript:startPersonalSocketConnection('{{ .Content.Id }}');">
+							{{ end }}
+							{{ end }}
+							<div class="d-flex align-items-center mb-2 p-3 bg-white recent-chat-card">
+								<div class="recent-chat-dp-wrapper">
+									{{ if .IsGroup }}
+									{{ if .Content.Avatar }}
+									<img class="img-fluid" src="{{ .Content.Avatar }}" alt="User profile picture" style="object-fit: cover; object-position: center;">
+									{{ else }}
+									<img src="../../assets/images/group.png" alt="user profile picture">
+									{{ end }}
+									{{ else }}
+									{{ if .Content.Avatar }}
+									<img class="img-fluid" src="{{ .Content.Avatar }}" alt="User profile picture" style="object-fit: cover; object-position: center;">
+									{{ else }}
+									<img src="../../assets/images/user.png" alt="user profile picture">
+									{{ end }}
+									{{ end }}
+								</div>
+								{{ if .IsBlocked }}
+								<div class="w-100 d-flex flex-column px-3">
+									<label><strong>{{ .Content.Name }}</strong></label>
+									<label><i style="color:#00000070;">Tap to unblock this user</i></label>
+								</div>
+								{{ else }}
+								<div class="w-100 d-flex flex-column px-3">
+									<label><strong>{{ .Content.Name }}</strong></label>
+									<label>
+										{{ if .Content.IsImage }}
+										<i class='far fa-image me-2'></i> {{ .Content.LastMsg }}
+										{{ else }}
+										{{ .Content.LastMsg }}
+										{{ end }}
+									</label>
+								</div>
+								<label class="recent-chat-time-text">{{ .Content.LastMsgTime }}</label>
+								{{ if .Content.IsRead }}
+								<div id="newMessageIndicator"></div>
+								{{ end }}
+								{{ end }}
+							</div>
+						</a>
+						{{ end }}
+						{{ end }}
+					</div>
+				</div>
+
+				<div class="col-12 col-md-7 col-lg-8 chat-section-wrapper h-100" id="dashboard-right-col">
+					{{ template "chat_welcome_sec" . }}
+					{{ template "dashboard_chat_part" . }}
+					{{ template "dashboard_create_group_form" . }}
+					{{ template "user_details_part" . }}
+				</div>
+			</div>
+		</section>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.0/jquery.validate.min.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+		<script type="text/javascript" src="../../assets/js/user_dashboard_functions.js"></script>
+		<script type="text/javascript">
+
+			function deleteUserAccount() {
+				Swal.fire({
+				  title: 'Are you sure?',
+				  text: "You won't be able to revert this!",
+				  icon: 'warning',
+				  showCancelButton: true,
+				  confirmButtonColor: '#3085d6',
+				  cancelButtonColor: '#d33',
+				  confirmButtonText: 'Yes, delete it!'
+				}).then((result) => {
+				  if (result.isConfirmed) {
+				  	window.location.href = "/user/dashboard/delete-account/{{ .UserPhone }}"
+				    Swal.fire(
+				      'Deleted!',
+				      'Your file has been deleted.',
+				      'success'
+				    )
+				  }
+				})
+			}
+	//
+	function openUserDetailsSec() {
+		userDetailsHeader = document.getElementById("dashboard-user-details-header");
+		userDetailsBody = document.getElementById("dashboard-user-details-body");
+
+		userChatHead = document.getElementById("dashboard-chat-part-header");
+		userChatBody = document.getElementById("dashboard-chat-part-body");
+
+		if(userDetailsHeader.classList.contains('d-none')) {
+			if(userChatBody.classList.contains('d-flex')) {
+				userChatHead.classList.remove('d-flex');
+				userChatHead.classList.add('d-none');
+
+				userChatBody.classList.remove('d-flex');
+				userChatBody.classList.add('d-none');
+
+				userDetailsHeader.classList.remove('d-none');
+				userDetailsHeader.classList.add('d-flex');
+
+				userDetailsBody.classList.remove('d-none');
+				userDetailsBody.classList.add('d-flex');
+			}
+		}
+	}
+
+	function closeUserDetailsSec() {
+		userDetailsHeader = document.getElementById("dashboard-user-details-header");
+		userDetailsBody = document.getElementById("dashboard-user-details-body");
+
+		userChatHead = document.getElementById("dashboard-chat-part-header");
+		userChatBody = document.getElementById("dashboard-chat-part-body");
+
+		if(userDetailsHeader.classList.contains('d-flex')) {
+			if(userChatBody.classList.contains('d-none')) {
+				userChatHead.classList.remove('d-none');
+				userChatHead.classList.add('d-flex');
+
+				userChatBody.classList.remove('d-none');
+				userChatBody.classList.add('d-flex');
+
+				userDetailsHeader.classList.remove('d-flex');
+				userDetailsHeader.classList.add('d-none');
+
+				userDetailsBody.classList.remove('d-flex');
+				userDetailsBody.classList.add('d-none');
+			}
+		}
+	}
+
+	function openGroupDetailsSec() {
+		userDetailsHeader = document.getElementById("dashboard-group-details-header");
+		userDetailsBody = document.getElementById("dashboard-group-details-body");
+
+		userChatHead = document.getElementById("dashboard-chat-part-header");
+		userChatBody = document.getElementById("dashboard-chat-part-body");
+
+		if(userDetailsHeader.classList.contains('d-none')) {
+			if(userChatBody.classList.contains('d-flex')) {
+				userChatHead.classList.remove('d-flex');
+				userChatHead.classList.add('d-none');
+
+				userChatBody.classList.remove('d-flex');
+				userChatBody.classList.add('d-none');
+
+				userDetailsHeader.classList.remove('d-none');
+				userDetailsHeader.classList.add('d-flex');
+
+				userDetailsBody.classList.remove('d-none');
+				userDetailsBody.classList.add('d-flex');
+			}
+		}
+	}
+
+	function closeGroupDetailsSec() {
+		userDetailsHeader = document.getElementById("dashboard-group-details-header");
+		userDetailsBody = document.getElementById("dashboard-group-details-body");
+
+		userChatHead = document.getElementById("dashboard-chat-part-header");
+		userChatBody = document.getElementById("dashboard-chat-part-body");
+
+		if(userDetailsHeader.classList.contains('d-flex')) {
+			if(userChatBody.classList.contains('d-none')) {
+				userChatHead.classList.remove('d-none');
+				userChatHead.classList.add('d-flex');
+
+				userChatBody.classList.remove('d-none');
+				userChatBody.classList.add('d-flex');
+
+				userDetailsHeader.classList.remove('d-flex');
+				userDetailsHeader.classList.add('d-none');
+
+				userDetailsBody.classList.remove('d-flex');
+				userDetailsBody.classList.add('d-none');
+			}
+		}
+	}
+
+	function bannedUser(id) {
+		const swalWithBootstrapButtons = Swal.mixin({
+			customClass: {
+				confirmButton: 'btn btn-success',
+				cancelButton: 'btn btn-danger'
+			},
+			buttonsStyling: false
+		})
+
+		swalWithBootstrapButtons.fire({
+			title: 'Are you sure?',
+			text: "Do you want to unblock this user ?",
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonText: 'Yes, unblock this user!',
+			cancelButtonText: 'No, cancel!',
+			reverseButtons: true
+		}).then((result) => {
+			if (result.isConfirmed) {
+				window.location.href = "/user/dashboard/user-unblock-user/"+id;
+				swalWithBootstrapButtons.fire(
+					'Unblocked!',
+					'The user has been unblocked!',
+					'success'
+					)
+			} else if (
+				/* Read more about handling dismissals below */
+				result.dismiss === Swal.DismissReason.cancel
+				) {2
+				swalWithBootstrapButtons.fire(
+					'Cancelled',
+					'',
+					'error'
+					)
+			}
+		})
+	}
+
+	function addStoryImage() {
+		// Input tage will be clicked 
+		$("#storyUpload").click();
+
+		// If the value on the input tage is changed, then 
+		// call the function to send ajax request
+		$("#storyUpload").change(function(){
+			document.getElementById("formToUploadStory").submit();
+		});
+	}
+
+	function openStory(num, name, exp, img) {
+		st = document.getElementById("theStorySection");
+		stUser = document.getElementById("story-u-name");
+		stExpTime = document.getElementById("story-exp-time");
+		stImg = document.getElementById("story-img");
+		stDelBt = document.getElementById("story-del");	
+		stDelDD = document.getElementById("story-del-dropdown");
+
+		if ({{ .UserPhone }} != num) {
+			stDelDD.classList.add("d-none"); 
+			$.ajax({
+				type: "POST",
+				url: "/user/dashboard/story-seen/" + num,
+				data: null,
+				success: function(e) {},
+				error: function(e) {},
+			});
+		} else {
+			stDelDD.classList.remove("d-none");
+		}
+
+		stUser.innerText = name;
+		stExpTime.innerText = exp;
+		stImg.setAttribute("src", img);
+		stDelBt.setAttribute("href", "/user/dashboard/delete-story/" + num);
+
+		st.classList.remove("d-none");
+		st.classList.add("d-flex");
+	}
+
+</script>
+
+{{ template "websocketJs" . }}
+
+{{ template "footer_part" . }}

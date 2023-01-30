@@ -1,0 +1,28 @@
+{{ template "header_part" . }}
+
+<section class="admin-login-bg h-100">
+	{{ if .ErrStr }}
+		<div class="auth-error-msg alert alert-danger">
+		    <div class="container d-flex justify-content-center">
+		        <div class="alert-icon">
+		            <i class="material-icons">error_outline</i>
+		        </div>
+		        &nbsp;&nbsp;<b>Error Alert :&nbsp;</b> {{ .ErrStr }}
+		    </div>
+		</div>
+	{{ end }}
+
+	<div class="d-flex justify-content-between align-items-center h-100">
+		<div class="admin-left-canvas bg-white rounded pt-4"><div class="mt-5 me-4"></div></div>
+		<form action="/admin/login-page" method="POST" id="adminLoginForm" class="col-12 col-sm-8 col-md-7 d-flex flex-column justify-content-center align-items-center bg-white rounded py-5 ps-sm-5">
+			<div class="w-100 pl-5 d-flex justify-content-end">
+				<h2 class="col-12 col-md-11 admin-login-title px-5 py-4 mb-5">ADMIN LOGIN SECTION</h2>			
+			</div>
+			<input type="text" name="signinName" placeholder="Username" class="input w-50" />
+			<input type="password" name="signinPass" placeholder="Password" class="input w-50" />
+			<button class="authBtn mt-4" type="submit">LOGIN</button>
+		</form>
+	</div>
+</section>
+
+{{ template "footer_part" }}

@@ -1,0 +1,58 @@
+{{ template "header_part" . }}
+
+<section id="otp-page" class="h-100">
+	{{ template "particles_div" . }}
+
+	{{ if .ErrorStr }}
+		<div class="auth-error-msg alert alert-danger">
+		    <div class="container d-flex justify-content-center">
+		        <div class="alert-icon">
+		            <i class="material-icons">error_outline</i>
+		        </div>
+		        &nbsp;&nbsp;<b>Error Alert :&nbsp;</b> {{ .ErrorStr }}
+		    </div>
+		</div>
+	{{ end }}
+
+	<div class="d-flex justify-content-center align-items-center h-100">
+		{{ if .IsLogin }}
+			<form action="/login/otp/getotp" method="POST" id="otpPageForm" class="form p-5">
+		{{ else }}  
+			<form action="/register/otp/getotp" method="POST" id="otpPageForm" class="form p-5">
+		{{ end }}
+		  <h2>OTP VALIDATION</h2>
+
+		  <div class="form-group">
+		  	<p>An OTP is sent to {{ .PhoneNumber }}, check the phone!</p>
+		  </div>
+		  <div class="form-group mt-3">
+		    <label for="exampleInputOtp1">Enter the OTP</label>
+		    <input name="loginOtp" type="number" class="form-control" id="exampleInputOtp1" placeholder="eg: 1234" autofocus>
+		  </div>
+		  <input name="loginPhone" type="number" class="form-control" id="exampleInputPhone4" value="{{ .PhoneNumber }}" style="display: none;">
+		  <div class="form-group mt-3">
+			  <button type="submit" class="btn btn-primary">Submit</button>  	
+		  </div>
+		</form>
+	</div>
+	
+</section>
+<script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.js"></script>
+<script src="../../../assets/js/app.js"></script>
+<script type="text/javascript">
+jQuery('#otpPageForm').validate({
+    rules: {
+      loginOtp: {
+      	required: true,
+      	minlength: 4,
+      	digits: true,
+      },
+    }, messages: {
+      loginOtp: 'An OTP of minimum 4 digits needed.',
+    }, submitHandler: function (otpPageForm) {
+      otpPageForm.submit();
+    }
+ });
+</script>
+
+{{ template "footer_part" . }}

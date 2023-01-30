@@ -1,0 +1,33 @@
+{{ define "deleted_users_tb_sec" }}
+
+	<div class="row my-5 complete-table-wrap" id="del-users-table-sec">
+	  <h3 class="fs-4 mb-3">Deleted Users Table</h3>
+	  <div class="col">
+	    <table class="table bg-white rounded shadow-sm  table-hover"  id="del-users-table">
+	      <thead>
+	      <tr>
+	        <th scope="col" width="50">user_phone_no</th>
+	        <th scope="col">user_name</th>
+	        <th scope="col">user_avatar</th>
+	        <th scope="col">user_about</th>
+	        <th scope="col">is_blocked</th>
+	        <th scope="col">deleted_time</th>
+	      </tr>
+	      </thead>
+	      <tbody>
+	      {{ range .DeletedUsersTbContent }}
+	        <tr>
+	          <th scope="row">{{ .UserPhone }}</th>
+	          <td>{{ .UserName }}</td>
+	          <td>{{ .UserAvatarUrl }}</td>
+	          <td>{{ .UserAbout }}</td>
+	          <td>{{ .UserBlocked }}</td>
+	          <td>{{ .DeletedTime }}</td>
+	        </tr>
+	      {{ end }}
+	      </tbody>
+	    </table>
+	  </div>
+	</div>
+
+{{ end }}

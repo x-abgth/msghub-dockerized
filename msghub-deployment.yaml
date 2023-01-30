@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: msghub-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: msghub-db 
+  template:
+    metadata:
+      labels:
+        app: msghub-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:14.6-alpine
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: abgthgo
+            - name: POSTGRES_DB
+              value: msghubdb
+          ports:
+            - containerPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: msghub-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: msghub-app
+  template:
+    metadata:
+      labels:
+        app: msghub-app
+    spec:
+      containers:
+        - name: msghub-container
+          image: abgth/msghub:latest
+          ports:
+            - containerPort: 9000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app: msghub-db
+spec:
+  ports:
+  - port: 5432 #service port
+    targetPort: 9000 # container port
+    name: web
+  clusterIP: None
+  selector:
+    app: msghub-db

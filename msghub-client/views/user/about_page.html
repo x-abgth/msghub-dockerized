@@ -1,0 +1,65 @@
+{{ template "header_part" . }}
+
+	<style type="text/css">
+		section{
+			height: 100vh;
+			width: 100%;
+		}
+
+		#about-nav{
+			position: absolute;
+			top: 0;
+			background: #00E0FF;
+			height: 80px;
+			width: 100%;
+		}
+
+		#about-nav a{
+			text-decoration: none;
+			font-size: 1.5em;
+			color: white;
+		}
+
+		#aboutNavBts a {
+			text-decoration: none;
+			border-radius: 15px;
+			color: white;
+			width: 25%;
+			text-align: center;
+		}
+
+		#dev-web{
+			background: #2196F3;
+		}
+
+		#linkedin{
+			background: #0A66C2;
+		}
+
+		#git-code {
+			background: #333;
+		}
+
+	</style>
+
+	<section class="container d-flex justify-content-center">
+		<nav id="about-nav" class="d-flex justify-content-start align-items-center px-5">
+			<a href="/user/dashboard"><strong>MSGHUB</strong></a>
+		</nav>
+		<div class="row d-flex flex-column align-items-center justify-content-center h-100 w-100">
+			<h2 style="text-align: center;" class="mb-3">ABOUT MSGHUB</h2>
+			<p>
+				Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Nisi lacus sed viverra tellus in hac. Mattis aliquam faucibus purus in massa tempor. Ornare lectus sit amet est placerat in. Quis eleifend quam adipiscing vitae proin sagittis. Amet consectetur adipiscing elit duis tristique sollicitudin nibh sit amet. Varius duis at consectetur lorem. Ultrices mi tempus imperdiet nulla malesuada. Venenatis cras sed felis eget velit aliquet sagittis id. Integer eget aliquet nibh praesent tristique magna sit amet purus.
+			</p>
+			<p>
+				Phasellus egestas tellus rutrum tellus pellentesque eu tincidunt. Et netus et malesuada fames ac turpis. Quis enim lobortis scelerisque fermentum. Non pulvinar neque laoreet suspendisse interdum consectetur. Sed cras ornare arcu dui vivamus arcu. Sed euismod nisi porta lorem mollis. Vestibulum morbi blandit cursus risus at ultrices. Ut ornare lectus sit amet est. Egestas fringilla phasellus faucibus scelerisque eleifend donec pretium vulputate. In metus vulputate eu scelerisque felis imperdiet. Egestas egestas fringilla phasellus faucibus scelerisque eleifend. Nunc pulvinar sapien et ligula ullamcorper. Adipiscing elit pellentesque habitant morbi tristique senectus et. Consequat semper viverra nam libero. In ante metus dictum at tempor commodo ullamcorper a.
+			</p>
+			<div id="aboutNavBts" class="d-flex justify-content-evenly align-items-center mt-4">
+				<a id="dev-web" href="https://abgth-dev.web.app/" target="blank" class="px-4 py-3"><i class='fas fa-globe'></i>&nbsp;&nbsp;Visit developer website</a>
+				<a id="git-code" href="https://github.com/x-abgth/msghub" target="blank" class="px-4 py-3"><i class='fab fa-github'></i>&nbsp;&nbsp;Github code</a>
+				<a id="linkedin" href="https://www.linkedin.com/in/abhijith-a-356850192/" target="blank" class="px-4 py-3"><i class='fab fa-linkedin-in'></i>&nbsp;&nbsp;LinkedIn</a>
+			</div>
+		</div>
+	</section>
+
+{{ template "footer_part" . }}

@@ -1,0 +1,61 @@
+{{ define "user_details_part" }}
+
+	<!-- FOR USER ONLY -->
+	<div id="dashboard-user-details-header" class="d-none user-dashboard-top-sec chat-head py-2 px-4 d-flex justify-content-between align-items-center">
+		<div class="d-flex align-items-center">
+			<a href="javascript:closeUserDetailsSec()"><i class="material-icons" style="font-size:36px">close</i></a>
+		</div>	
+	</div>
+	<div id="dashboard-user-details-body" class="d-none flex-column user-chat-sec align-items-start justify-content-center p-3">
+		<div id="profile-top-part" class="w-100 d-flex flex-column align-items-center justify-content-center"> 
+			<div>
+				<img class="img-fluid" id="user-img-shown" alt="">			
+			</div>
+			<h4 id="user-name-shown" class="mt-4"></h4>
+			<p>+91&nbsp;<span id="phone-number-shown"></span></p>
+		</div>
+		<div id="profile-about-part" class="w-100 px-4">
+			<label style="color: #757575;">About</label>
+			<p id="user-about-shown"></p>
+		</div>
+		<div></div>
+		<button id="userBlocksUserBt" class="py-4 ps-3"><i class='fas fa-ban'></i>&nbsp;&nbsp;Block this user</button>
+	</div>
+
+	<!-- FOR GROUP ONLY -->
+	<div id="dashboard-group-details-header" class="d-none user-dashboard-top-sec chat-head py-2 px-4 d-flex justify-content-between align-items-center">
+		<div class="d-flex align-items-center justify-content-between w-100">
+			<a href="javascript:closeGroupDetailsSec()"><i class="material-icons" style="font-size:36px">close</i></a>
+			<a id="manageGroupMembersBt" class="px-3 py-2">ADD MEMBERS</a>
+		</div>	
+	</div>
+	<div id="dashboard-group-details-body" class="d-none flex-column user-chat-sec align-items-start justify-content-center p-3">
+		<div id="profile-top-part" class="w-100 d-flex flex-column align-items-center justify-content-center"> 
+			<div>
+				<img class="img-fluid" id="group-img-shown" alt="">			
+			</div>
+			<h4 id="group-name-shown" class="mt-4"></h4>
+			<p id="group-about-shown"></p>
+			<i id="group-date-shown"></i>
+		</div>
+		<div id="profile-about-part" class="w-100 px-4">
+			<div class="d-flex">
+				<label style="color: #757575;">Members</label>&nbsp;
+				<p>(<span id="member-count"></span>)</p>				
+			</div>
+			<div id="group-members-shown" class="d-flex flex-column">
+				<!-- HERE WE ADD MEMBERS -->
+			</div>
+		</div>
+		<div></div>
+		<button id="leaveGroupBt"  class="py-4 ps-3"><i class='fas fa-trash'></i>&nbsp;&nbsp;LEAVE GROUP</button>
+	</div>
+<div id="g-member-bt" class="d-none dropdown">				
+ <button class="btn btn-secondary btn-danger dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    Member
+  </button>
+  <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+    <a class="dropdown-item">Kick out</a>
+  </div>
+</div>
+{{ end }}

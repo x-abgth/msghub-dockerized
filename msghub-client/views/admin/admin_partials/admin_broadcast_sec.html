@@ -1,0 +1,13 @@
+{{ define "broadcast_message" }}
+	
+	<div class="row my-5 complete-table-wrap d-flex flex-column justify-content-center align-items-center" id="broadcast-sec">
+		<h2 id="broadcast-header" style="width: fit-content;">SEND MESSAGE TO EVERY USERS!</h2>
+		<form action="/admin/broadcast-message" method="POST" >
+			<div class="d-flex flex-column justify-content-center align-items-center my-3">
+				<textarea class="mb-3 p-4" name="message" id="broadcast-input-field" placeholder="Type something ..."></textarea>
+				<button type="submit" class="px-3 py-2 mx-auto" id="broadcast-send-bt">SEND</button>
+			</div>
+		</form>
+	</div>
+
+{{ end }}

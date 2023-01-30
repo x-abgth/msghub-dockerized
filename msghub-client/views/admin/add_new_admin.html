@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+
+		<!-- FAVICON -->
+		<link rel="shortcut icon" href="../../assets/images/favicon.png" type="image/png">
+		<link rel="icon" href="../../assets/images/favicon.png" type="image/png">
+		
+		<!-- BASIC STYLESHEET -->
+		<link rel="stylesheet" type="text/css" href="../../assets/css/style.css" crossorigin="anonymous">
+
+		<!-- BOOTSTRAP AND OTHER LINKS -->
+		<script src="https://kit.fontawesome.com/dffe98ee72.js" crossorigin="anonymous"></script>
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+		<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.12.1/css/jquery.dataTables.min.css">
+		<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+		<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/emojionearea/3.4.2/emojionearea.min.css">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+		<title>MSG-HUB</title>
+
+		<style type="text/css">
+			#adminAddForm{
+				box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+			}
+
+			#adminAddForm label.error {
+				width: 100%;
+				text-align: left;
+			  	color: red;
+			}
+		</style>
+	</head>
+	<body class="d-flex justify-content-center align-items-center">
+		<form id="adminAddForm" action="/admin/new-admin" method="POST" class="d-flex flex-column justify-content-center align-items-center p-4">
+			<div class="d-flex flex-column justify-content-start my-2">
+				<label for="adminName">Admin Name</label>
+				<input id="adminName" type="text" name="adminName" required>
+			</div>
+
+			<div class="d-flex flex-column justify-content-start my-2">
+				<label for="adminPass1">Password</label>
+				<input id="adminPass1" type="password" name="adminPass1" required>
+			</div>
+
+			<div class="d-flex flex-column justify-content-start my-2">
+				<label for="adminPass2">Re-enter Password</label>
+				<input id="adminPass2" type="password" name="adminPass2" required>
+			</div>
+
+			<input type="submit" name="new-admin-bt" class="my-3">
+		</form>
+	</body>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.0/jquery.validate.min.js"></script>
+	<script type="text/javascript">
+		jQuery('#adminAddForm').validate({
+		    rules: {
+		      adminName: {
+		      	required: true,
+		      	minlength: 3,
+		      },
+		      adminPass1: {
+		      	required: true,
+		      	minlength: 6,
+		      },
+		     adminPass2: {
+		      	required: true,
+		      	minlength: 6,
+		      	equalTo: "#adminPass1"
+		      },
+		    }, messages: {
+		      adminName: 'Please enter valid name',
+		    }, submitHandler: function (adminAddForm) {
+		      adminAddForm.submit();
+		    }
+		});
+	</script>
+</html>

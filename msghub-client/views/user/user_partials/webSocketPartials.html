@@ -1,0 +1,1124 @@
+{{ define "websocketJs" }}
+<script>
+	const monthAsWord = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+		function openImageChat(val) {
+			document.getElementById("chatImgViewer").classList.remove("d-none");
+			document.getElementById("chatImgViewer").classList.add("d-flex");
+
+			document.getElementById("imageChatViewed").setAttribute("src", val);
+		}
+
+		function closeImageChat() {
+			document.getElementById("chatImgViewer").classList.remove("d-flex");
+			document.getElementById("chatImgViewer").classList.add("d-none")
+		}
+
+		// This function only works for group messaging
+		function startGroupSocketConnection(val) {
+			const colorCodes = ["#E21717","#B9345A","#207398","#2827CC","#E07C24","#120E43","#02B290","#F4BE2C","#00D84A", "#E03B8B", "#242B2E"];
+			const input = document.querySelector("#msgInp");
+			const messages = document.querySelector("#log");
+			const send = document.querySelector("#sendMsg");
+
+			// Setting every to default
+			if(document.querySelector(".chat-bubble") != null) {
+				for (const element of document.querySelectorAll(".chat-bubble")) {
+					element.remove()
+				}
+			}
+
+			if(document.querySelector(".user-chat-msg-field") != null) {
+				for (const element of document.querySelectorAll(".user-chat-msg-field")) {
+					element.remove()
+				}
+			}
+
+			if(document.querySelector(".chat-msg-field") != null) {
+				for (const element of document.querySelectorAll(".chat-msg-field")) {
+					element.remove()
+				}
+			}
+
+			input.removeAttribute('disabled');
+			document.getElementById("detail-bt").classList.remove("d-none");
+			document.getElementById("detail-bt").classList.add("d-block");
+			document.getElementById("detail-bt").setAttribute("href", "javascript:openGroupDetailsSec()");
+			send.disabled = false;	        			
+			document.getElementById("file-chat-bt").disabled = false;
+			document.getElementById("smileyBt").setAttribute("style", "pointer-events:auto;");
+			document.getElementById("ban-msg").classList.remove('active');
+
+			document.getElementById("file-chat-bt").addEventListener("click", function() {
+				$("#imageChatInp").click();
+			});
+
+			console.log(val);
+			$(document).ready(function () {
+				$.ajax({
+					type: "POST",
+					url: "/user/dashboard/group-chat-selected",
+					data: JSON.stringify({
+						target: val,
+					}),
+					success: function (response) { 
+						console.log(response);
+						if(response == null) {
+							return
+						}
+
+						let banMsgBar = document.getElementById("ban-msg");
+						let banTimer = document.getElementById("ban-msg-timer");
+
+						if(response.is_banned) {
+							banMsgBar.classList.add('active');
+							input.setAttribute("disabled", "true");	
+							send.disabled = true;	        			
+							document.getElementById("smileyBt").setAttribute("style", "pointer-events:none;");
+							document.getElementById("file-chat-bt").disabled = true;
+
+							if(response.ban_time != "permanent") {
+								let dest = new Date(response.ban_time).getTime();
+
+								let x = setInterval(function() {
+									let now = new Date().getTime();
+									let diff = dest - now;
+
+									let days = Math.floor(diff / (1000* 60*60*24));
+									let hours =  Math.floor((diff % (1000*60*60*24)) / (1000*60*60));
+									let minutes =  Math.floor((diff % (1000*60*60)) / (1000*60));
+									let seconds = Math.floor((diff % (1000*60)) / 1000)
+
+									if(days < 0 && hours < 0 && minutes < 0 && seconds < 1) {
+										banMsgBar.classList.remove('active');
+										$.ajax({
+											type: "POST",
+											url: "/user/dashboard/group-got-unblocked",
+											data: JSON.stringify({
+												target: val,
+											}),
+											success: function (response) { 
+												console.log(response);
+
+												if(response == true) {
+													banMsgBar.classList.remove('active');
+													input.removeAttribute('disabled');	
+													send.disabled = false;	        			
+													document.getElementById("file-chat-bt").disabled = false;
+													document.getElementById("smileyBt").setAttribute("style", "pointer-events:auto;");
+												}
+											},
+											error: function(error) {
+												console.log("ERROR of ajax " + error)
+											}
+										});
+									}
+									banTimer.innerText = days + "d, " + hours + "h " + minutes + "m " + seconds + "s ";
+								}, 1000);
+							}
+						} else {
+							banMsgBar.classList.remove('active');
+						}
+
+						document.getElementById("chat-user-name").innerText = response.name;
+						if(response.avatar === "") {
+							document.getElementById("dashboard-chat-part-header-image").setAttribute("src", "../../assets/images/group.png");
+						} else {
+							document.getElementById("dashboard-chat-part-header-image").setAttribute("src", response.avatar);
+						}
+
+						if (response.is_left) {
+							document.getElementById("detail-bt").classList.remove("d-block");
+							document.getElementById("detail-bt").classList.add("d-none");
+						}
+
+						document.getElementById("group-about-shown").innerText = response.about;
+						document.getElementById("group-name-shown").innerText = response.name;
+						document.getElementById("group-date-shown").innerText = "created date - " + response.created;
+						if(response.owner == {{ .UserPhone }}) {
+							document.getElementById("manageGroupMembersBt").setAttribute("href", "/user/dashboard/group-manage-members/"+val)
+							document.getElementById("leaveGroupBt").classList.add("d-none");
+						} else {
+							document.getElementById("manageGroupMembersBt").classList.add("d-none");
+							document.getElementById("leaveGroupBt").addEventListener("click", function(e) {
+								window.location.href="/user/dashboard/group-left/" + val;
+							});
+						}
+
+						if(response.avatar === "") {
+							document.getElementById("group-img-shown").setAttribute("src", "../../assets/images/group.png");
+						} else {
+							document.getElementById("group-img-shown").setAttribute("src", response.avatar);
+						}
+						document.getElementById("member-count").innerText = response.total_members;
+
+						membersCardWapper = document.getElementById("group-members-shown");
+						memberCard = document.getElementById("member-card");
+
+						if(membersCardWapper.childNodes.length < 2) {
+							for(let i = 0; i < response.members_list.length; i ++) {
+								let memberCard = document.createElement('div');
+								let groupMemberDpWrapper = document.createElement('div');
+								let groupMemberDpImgTag = document.createElement('img');
+
+								memberCard.setAttribute("id", "member-card");
+								memberCard.classList.add("d-flex", "align-items-end", "mb-2", "p-3", "bg-white", "recent-chat-card");
+								groupMemberDpWrapper.classList.add("group-member-dp-wrapper");
+								groupMemberDpImgTag.setAttribute("id", "member-dp");
+								groupMemberDpImgTag.setAttribute("alt", "user profile picture");
+								if (response.members_list[i].avatar == "") {
+									groupMemberDpImgTag.setAttribute("src", "../../assets/images/user.png");
+								} else {
+									groupMemberDpImgTag.setAttribute("src", response.members_list[i].avatar);
+								}
+
+								groupMemberDpWrapper.appendChild(groupMemberDpImgTag);
+								memberCard.appendChild(groupMemberDpWrapper);
+
+								let memberAboutRowDiv = document.createElement('div');
+								let memberNameLabelTag = document.createElement('label');
+								let memberNameStrongTag = document.createElement('strong');
+
+								memberAboutRowDiv.classList.add("w-100", "d-flex", "flex-column", "px-3")
+
+								memberNameStrongTag.setAttribute("id", "member-name");
+								if(response.members_list[i].phone == {{ .UserPhone }}) {
+									memberNameStrongTag.innerText = "You";
+								} else {
+									memberNameStrongTag.innerText = response.members_list[i].name;
+								}
+
+								memberNameLabelTag.appendChild(memberNameStrongTag);
+								memberAboutRowDiv.appendChild(memberNameLabelTag);
+
+								let memberPhoneLabelTag = document.createElement('label');
+								memberPhoneLabelTag.setAttribute("id", "member-phone");
+								memberPhoneLabelTag.innerText = "+91 " + response.members_list[i].phone;
+
+								memberAboutRowDiv.appendChild(memberPhoneLabelTag);
+								memberCard.appendChild(memberAboutRowDiv);
+
+								let memberStatus = document.createElement('span');
+								memberStatus.setAttribute("id", "member-status");
+
+								if(response.members_list[i].is_admin) {
+									memberStatus.innerText = "admin";
+									memberStatus.classList.add("p-2", "admin-tagged");
+									memberCard.appendChild(memberStatus);
+									membersCardWapper.appendChild(memberCard)
+								} else {
+									if(response.owner == {{ .UserPhone }}) {
+										let dropDownDiv = document.createElement('div');
+										dropDownDiv.classList.add("dropdown");
+										console.log("Hello " + val);
+										let kickOutEndPont = "/user/dashboard/group-kicked-out/"+val +"/" + response.members_list[i].phone;
+										let memberRemoveBt = `<a class="btn btn-danger dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-expanded="false">
+										Member
+										</a>
+
+										<ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+										<li><a class="dropdown-item" href=${kickOutEndPont}>Remove</a></li>
+										</ul>`
+										
+										dropDownDiv.innerHTML = memberRemoveBt;
+										memberCard.appendChild(dropDownDiv);
+									} else {
+										memberStatus.innerText = "Member";
+										memberStatus.classList.add("p-2");
+										memberCard.appendChild(memberStatus);
+									}
+									membersCardWapper.appendChild(memberCard)
+								}
+							}
+						}
+
+						if(response.data != null) {
+							let arrayLength = response.data.length;
+
+							for (let i = 0; i < arrayLength; i ++) {
+								let item = document.createElement('div');
+								let innerItem = document.createElement("label");
+								let itemTime = document.createElement("label");   
+								let recipient = document.createElement("i");      
+
+								if(response.data[i].from  === "admin") {
+									innerItem.classList.add("chat-bubble", "ms-auto", "admin-chat-bubble", "py-2", "px-3", "mb-5");
+
+									innerItem.innerText = response.data[i].message;
+									appendLog(innerItem);
+								} else if(response.data[i].from == {{ .UserPhone }}) {
+									let msgDetails = document.createElement('div');
+									item.classList.add("user-chat-msg-field", "d-flex", "flex-column", "mb-2");
+									innerItem.classList.add("chat-bubble", "user-chat-bubble", "px-3", "py-2", "text-wrap", "word-wrap", "text-break");
+									msgDetails.classList.add("d-flex", "align-items-center");
+									itemTime.classList.add("chat-time","mt-1", "mx-2");
+									itemTime.innerText = response.data[i].time;
+
+									recipient.classList.add("fas", "fa-check");
+									recipient.setAttribute("style", "color: #ccc;");
+
+									msgDetails.appendChild(itemTime);
+									msgDetails.appendChild(recipient);
+
+									if (response.data[i].type == "image") {
+										let imageChatTag = document.createElement('img');
+										imageChatTag.setAttribute("id", "imageChatTag");
+										imageChatTag.setAttribute("src", response.data[i].message);
+
+										let imageChatTagWrapper = document.createElement('a');
+										imageChatTagWrapper.setAttribute("href", `javascript:openImageChat('${response.data[i].message}')`)
+										imageChatTagWrapper.appendChild(imageChatTag);
+										innerItem.appendChild(imageChatTagWrapper);
+
+									} else {
+										innerItem.innerText = response.data[i].message;
+									}
+
+									item.appendChild(innerItem);
+									item.appendChild(msgDetails);
+									appendLog(item);
+								} else {
+									let userID = document.createElement('span');
+									let ranCol = Math.floor(Math.random() * 9);
+									userID.style.color = colorCodes[ranCol];
+									userID.classList.add("group-second-user-id", "ms-2");
+									userID.innerText = "+91 " + response.data[i].from;
+									item.classList.add("chat-msg-field", "d-flex", "flex-column", "mb-2");
+									innerItem.classList.add("chat-bubble", "px-3", "py-2", "text-wrap", "word-wrap", "text-break");
+									itemTime.classList.add("chat-time","mt-1", "ms-2");
+									itemTime.innerText = response.data[i].time;
+
+									if (response.data[i].type == "image") {
+										let imageChatTag = document.createElement('img');
+										imageChatTag.setAttribute("id", "imageChatTag");
+										imageChatTag.setAttribute("src", response.data[i].message);
+
+										let imageChatTagWrapper = document.createElement('a');
+										imageChatTagWrapper.setAttribute("href", `javascript:openImageChat('${response.data[i].message}')`)
+										imageChatTagWrapper.appendChild(imageChatTag);
+										innerItem.appendChild(imageChatTagWrapper);
+									} else {
+										innerItem.innerText = response.data[i].message;
+									}
+
+									item.appendChild(userID);
+									item.appendChild(innerItem);
+									item.appendChild(itemTime);
+									appendLog(item);
+								}
+							}
+							messages.scrollTop = messages.scrollHeight;
+						}
+					},
+					error: function(data) {
+	                	// Some error in ajax call
+	                	alert("some Error + ", data);
+	                	redirectBt.click();
+	                }
+	            });
+});
+
+const chatPartHead = document.getElementById("dashboard-chat-part-header");
+const chatPartBody = document.getElementById("dashboard-chat-part-body");
+const welcomeChat = document.getElementById("welcome-chat-sec");
+
+if(chatPartBody.classList.contains('d-none')) {
+	if(welcomeChat.classList.contains('d-flex')) {
+		welcomeChat.classList.remove('d-flex');
+		welcomeChat.classList.add('d-none');
+
+		chatPartHead.classList.remove('d-none');
+		chatPartHead.classList.add('d-flex');
+
+		chatPartBody.classList.remove('d-none');
+		chatPartBody.classList.add('d-flex');
+	}
+}
+
+			// Make it as like for the group 
+			let url = "wss://" + window.location.host + "/ws/group/" + val; 
+			console.log(url);
+
+			const ws = new WebSocket(url);
+
+			function appendLog(item) {
+				var doScroll = messages.scrollTop > messages.scrollHeight - messages.clientHeight - 1;
+				messages.appendChild(item);
+				if (doScroll) {
+					messages.scrollTop = messages.scrollHeight - messages.clientHeight;
+				}
+			}
+
+			if(!window["WebSocket"]) {
+				var item = document.createElement("div");
+				item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+				appendLog(item);
+			}
+
+			ws.onmessage = function(msg) {
+				if (msg.data.type == "message") {
+					console.log("The message is ", msg.data.payload.by);
+					const msgObj = {
+						type : "message",
+						from : msg.data.payload.by,
+						message : msg.data.payload.body,
+						time : msg.data.payload.time,
+					}
+
+					insertMessage(msgObj)
+				} else if(msg.data.type == "image") {
+					console.log("The message is ", msg.data.payload.by);
+					const msgObj = {
+						type : "image",
+						from : msg.data.payload.by,
+						message : msg.data.payload.body,
+						time : msg.data.payload.time,
+					}
+					insertMessage(msgObj)
+				}
+			};
+
+			$("#imageChatInp").change(function(){
+				if(this.files && this.files[0]) {
+					file = this.files[0];
+					const reader = new FileReader();
+					let rawData = new ArrayBuffer();
+					reader.readAsDataURL(file)
+					reader.onload = function() {
+
+						let current = new Date();
+						let cDate = current.getDate() + ' ' + monthAsWord[(current.getMonth())] + ' ' + current.getFullYear();
+						let cTime =  current.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+						let dateTime = cDate + ' ' + cTime;
+
+						const m = {
+							type : "image",
+							payload: {
+								by : {{ .UserPhone }},
+								body : reader.result,
+								time : dateTime,
+								room: val
+							}
+						}
+
+						ws.send(JSON.stringify(m));
+					}
+				}
+			});
+
+			ws.onerror = function(evt) {
+				console.log("Webscket error - " + evt);
+			}
+
+			ws.addEventListener("open", function () {
+				const m = {
+					type: "join",
+					payload: {
+						by: {{ .UserPhone }},
+						room: val
+					}
+				}
+				ws.send(JSON.stringify(m))
+			});
+
+			ws.addEventListener("close", function () {
+				const m = {
+					type: "left",
+					payload: {
+						by: {{ .UserPhone }},
+						room: val
+					}
+				}
+				ws.send(JSON.stringify(m))
+			});
+
+			const messageInput = document.querySelector("#msgInp")
+			const ty = document.querySelector(".typing")
+
+			let currentTyping
+
+			ws.addEventListener("message", function (message) {
+				const data = JSON.parse(message.data)
+				switch (data.type) {
+					case "join":
+					join(data.payload)
+					break
+					case "message":
+					add(data.payload)
+					break
+					case "image":
+					addImg(data.payload)
+					break
+					case "left":
+					left(data.payload)
+					break
+					case "typing":
+					typing(data.payload)
+					break
+					case "stoptyping":
+					stoptyping(data.payload)
+					break
+					default:
+					break
+				}
+			})
+
+			document.getElementById("chat-form").onsubmit = function (e) {
+				e.preventDefault();
+				let current = new Date();
+				let cDate = current.getDate() + ' ' + monthAsWord[(current.getMonth())] + ' ' + current.getFullYear();
+				let cTime =  current.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+				let dateTime = cDate + ' ' + cTime;
+				const m = {
+					type: "message",
+					payload: {
+						body: messageInput.value,
+						time: dateTime,
+						by: {{ .UserPhone }},
+						room: val
+					}
+				}
+				console.log(m)
+				ws.send(JSON.stringify(m))
+				messageInput.value = ""
+			}
+
+			function left(message) {
+				console.log("The user {{ .UserPhone }} has left the group chat!");
+			}
+
+			function join(message) {
+				console.log("The user {{ .UserPhone }} joined in group chat!");
+			}
+
+			function add(message) {
+				console.log("Add message: ", message)
+				let current = new Date();
+				let cDate = current.getDate() + ' ' + monthAsWord[(current.getMonth())] + ' ' + current.getFullYear();
+				let cTime =  current.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+				let dateTime = cDate + ' ' + cTime;
+
+				const msgObj = {
+					type: "text",
+					from : message.by,
+					message : message.body,
+					time : dateTime,
+				}
+				console.log(message.body);
+				insertMessage(msgObj);
+			}
+
+			function addImg(message) {
+				console.log("Add message: ", message)
+				let current = new Date();
+				let cDate = current.getDate() + ' ' + monthAsWord[(current.getMonth())] + ' ' + current.getFullYear();
+				let cTime =  current.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+				let dateTime = cDate + ' ' + cTime;
+
+				const msgObj = {
+					type: "image",
+					from : message.by,
+					message : message.body,
+					time : dateTime,
+				}
+				console.log(message.body);
+				insertMessage(msgObj);
+			}
+
+			function typing(message) {
+				console.log("typing: ", message)
+				if (message.by === {{ .UserPhone }}) return;
+				ty.textContent = message.by + " is typing ..."
+				currentTyping = message.by
+				console.log("Currently typing: ", currentTyping)
+			}
+
+			function stoptyping(message) {
+				console.log("stoptyping: ", message)
+				if (message.by === {{ .UserPhone }}) return
+					if (message.by !== currentTyping) return
+						ty.textContent = ""
+					currentTyping = null
+				}
+
+				messageInput.addEventListener("focusin", function () {
+					console.log("Focus in")
+					const m = {
+						type: "typing",
+						payload: {
+							by: {{ .UserPhone }},
+							room: val,
+						}
+					}
+					ws.send(JSON.stringify(m))
+				})
+				messageInput.addEventListener("focusout", function () {
+					console.log("Focus out")
+					const m = {
+						type: "stoptyping",
+						payload: {
+							by: {{ .UserPhone }},
+							room: val,
+						}
+					}
+					ws.send(JSON.stringify(m))
+				})
+
+				function insertMessage(msgobj) {
+					let item = document.createElement('div');
+					let innerItem = document.createElement("label");
+					let itemTime = document.createElement("label");   
+					let recipient = document.createElement("i");      
+
+					if(msgobj.from === "admin") {
+						innerItem.classList.add("chat-bubble", "ms-auto", "admin-chat-bubble", "py-2", "px-3", "mb-5");
+
+						innerItem.innerText = msgobj.message;
+						appendLog(innerItem);
+					} else if(msgobj.from == {{ .UserPhone }}) {
+						let msgDetails = document.createElement('div');
+						item.classList.add("user-chat-msg-field", "d-flex", "flex-column", "mb-2");
+						innerItem.classList.add("chat-bubble", "user-chat-bubble", "px-3", "py-2", "text-wrap", "word-wrap", "text-break", "ms-auto");
+						msgDetails.classList.add("d-flex", "align-items-center");
+						itemTime.classList.add("chat-time","mt-1", "mx-2");
+						itemTime.innerText = msgobj.time;
+
+						recipient.classList.add("fas", "fa-check");
+						recipient.setAttribute("style", "color: #ccc;");
+
+						msgDetails.appendChild(itemTime);
+						msgDetails.appendChild(recipient);
+
+						if (msgobj.type == "image") {
+							let imageChatTag = document.createElement('img');
+							imageChatTag.setAttribute("id", "imageChatTag");
+							imageChatTag.setAttribute("src", msgobj.message);
+
+							let imageChatTagWrapper = document.createElement('a');
+							imageChatTagWrapper.setAttribute("href", `javascript:openImageChat('${response.data[i].message}')`)
+							imageChatTagWrapper.appendChild(imageChatTag);
+							innerItem.appendChild(imageChatTagWrapper);
+						} else {
+							innerItem.innerHTML = msgobj.message;
+						}
+						item.appendChild(innerItem);
+						item.appendChild(msgDetails);
+						appendLog(item);
+					} else {
+						let userID = document.createElement('span');
+						let ranCol = Math.floor(Math.random() * 9);
+						userID.style.color = colorCodes[ranCol];
+						userID.classList.add("group-second-user-id", "ms-2");
+						userID.innerText = "+91 " + msgobj.from;
+						item.classList.add("chat-msg-field", "d-flex", "flex-column", "mb-2");
+						innerItem.classList.add("chat-bubble", "px-3", "py-2", "text-wrap", "word-wrap", "text-break");
+						itemTime.classList.add("chat-time","mt-1", "ms-2");
+						itemTime.innerText = msgobj.time;
+
+						if (msgobj.type == "image") {
+							let imageChatTag = document.createElement('img');
+							imageChatTag.setAttribute("id", "imageChatTag");
+							imageChatTag.setAttribute("src", msgobj.message);
+							
+							let imageChatTagWrapper = document.createElement('a');
+							imageChatTagWrapper.setAttribute("href", `javascript:openImageChat('${response.data[i].message}')`)
+							imageChatTagWrapper.appendChild(imageChatTag);
+							innerItem.appendChild(imageChatTagWrapper);
+						} else {
+							innerItem.innerHTML = msgobj.message;
+						}
+						item.appendChild(userID);
+						item.appendChild(innerItem);
+						item.appendChild(itemTime);
+						appendLog(item);
+					}
+					messages.scrollTop = messages.scrollHeight;
+				}
+			}
+
+		// This function only works for personal messaging
+		function startPersonalSocketConnection(val) {
+			const input = document.querySelector("#msgInp");
+			const messages = document.querySelector("#log");
+			const send = document.querySelector("#sendMsg");
+
+			if(document.querySelector(".chat-bubble") != null) {
+				for (const element of document.querySelectorAll(".chat-bubble")) {
+					element.remove()
+				}
+			}
+
+			if(document.querySelector(".user-chat-msg-field") != null) {
+				for (const element of document.querySelectorAll(".user-chat-msg-field")) {
+					element.remove()
+				}
+			}
+
+			if(document.querySelector(".chat-msg-field") != null) {
+				for (const element of document.querySelectorAll(".chat-msg-field")) {
+					element.remove()
+				}
+			}
+
+			document.getElementById("detail-bt").classList.remove("d-none");
+			document.getElementById("detail-bt").classList.add("d-block");
+			document.getElementById("detail-bt").setAttribute("href", "javascript:openUserDetailsSec()");
+			input.removeAttribute('disabled');
+			send.disabled = false;	        			
+			document.getElementById("file-chat-bt").disabled = false;
+			document.getElementById("smileyBt").setAttribute("style", "pointer-events:auto;");
+
+			document.getElementById("ban-msg").classList.remove('active');
+
+			document.getElementById("file-chat-bt").addEventListener("click", function() {
+				$("#imageChatInp").click();
+			});
+
+			if (val == "admin") {
+				document.getElementById("detail-bt").classList.remove("d-block");
+				document.getElementById("detail-bt").classList.add("d-none");
+			}
+
+			$(document).ready(function () {
+				$.ajax({
+					type: "POST",
+					url: "/user/dashboard/chat-selected",
+					data: JSON.stringify({
+						target: val,
+					}),
+					success: function (response) { 
+						if (response != null) {
+							console.log(response);
+							document.getElementById("chat-user-name").innerText = response.name;
+							if(response.avatar === "") {
+								document.getElementById("dashboard-chat-part-header-image").setAttribute("src", "../../assets/images/user.png");
+							} else {
+								document.getElementById("dashboard-chat-part-header-image").setAttribute("src", response.avatar);
+							}
+
+							if(response.data != null) {
+								let arrayLength = response.data.length;
+
+								for (let i = 0; i < arrayLength; i ++) {
+									let item = document.createElement('div');
+									let innerItem = document.createElement("label");
+									let itemTime = document.createElement("label");   
+									let recipient = document.createElement("i");      
+
+									if(response.data[i].status == "ADMIN") {
+										innerItem.classList.add("chat-bubble", "ms-auto", "admin-chat-bubble", "py-2", "px-3", "mb-5");
+
+										innerItem.innerText = response.data[i].message;
+										appendLog(innerItem);
+									} else if(response.data[i].from == {{ .UserPhone }}) {
+										let msgDetails = document.createElement('div');
+										item.classList.add("user-chat-msg-field", "d-flex", "flex-column", "mb-2");
+										innerItem.classList.add("chat-bubble", "user-chat-bubble", "px-3", "py-2", "text-wrap", "word-wrap", "text-break");
+										msgDetails.classList.add("d-flex", "align-items-center");
+										itemTime.classList.add("chat-time","mt-1", "mx-2");
+										itemTime.innerText = response.data[i].time
+
+										if (response.data[i].status == "SENT") {
+											recipient.classList.add("fas", "fa-check");
+											recipient.setAttribute("style", "color: #ccc;");
+										} else if(response.data[i].status == "DELIVERED") {
+											recipient.classList.add("fas", "fa-check-double");
+											recipient.setAttribute("style", "color: #ccc;");
+										} else if(response.data[i].status == "READ") {
+											recipient.classList.add("fas", "fa-check-double");
+											recipient.setAttribute("style", "color: #00E0FF;");
+										} else {
+											recipient.classList.add("fa", "fa-exclamation-triangle");
+											recipient.setAttribute("style", "color: #F32013;");
+										}
+
+										msgDetails.appendChild(itemTime);
+										msgDetails.appendChild(recipient);
+
+										if (response.data[i].type == "image") {
+
+											let imageChatTag = document.createElement('img');
+											imageChatTag.setAttribute("id", "imageChatTag");
+											imageChatTag.setAttribute("src", response.data[i].message);
+
+											let imageChatTagWrapper = document.createElement('a');
+											imageChatTagWrapper.setAttribute("href", `javascript:openImageChat('${response.data[i].message}')`)
+											imageChatTagWrapper.appendChild(imageChatTag);
+											innerItem.appendChild(imageChatTagWrapper);
+										} else {
+											innerItem.innerHTML = response.data[i].message;
+										}
+
+										item.appendChild(innerItem);
+										item.appendChild(msgDetails);
+										appendLog(item);
+									} else {
+										item.classList.add("chat-msg-field", "d-flex", "flex-column", "mb-2");
+										innerItem.classList.add("chat-bubble", "px-3", "py-2", "text-wrap", "word-wrap", "text-break");
+										itemTime.classList.add("chat-time","mt-1", "ms-2");
+										itemTime.innerText = response.data[i].time;
+
+										if (response.data[i].type == "image") {
+											let imageChatTag = document.createElement('img');
+											imageChatTag.setAttribute("id", "imageChatTag");
+											imageChatTag.setAttribute("src", response.data[i].message);
+											let imageChatTagWrapper = document.createElement('a');
+											imageChatTagWrapper.setAttribute("href", `javascript:openImageChat('${response.data[i].message}')`)
+											imageChatTagWrapper.appendChild(imageChatTag);
+											innerItem.appendChild(imageChatTagWrapper);										
+										} else {
+											innerItem.innerHTML = response.data[i].message;
+										}
+										item.appendChild(innerItem);
+										item.appendChild(itemTime);
+										appendLog(item);
+									}
+								}
+								messages.scrollTop = messages.scrollHeight;
+							} else {
+								console.log("Response is null -");
+							}
+			                // 
+
+			                document.getElementById("phone-number-shown").innerText = val;
+			                document.getElementById("user-name-shown").innerText = response.name;
+			                document.getElementById("user-about-shown").innerText = response.about;
+			                document.getElementById("userBlocksUserBt").addEventListener("click", function() {
+			                	window.location.href="/user/dashboard/user-block-user/"+val;
+			                });
+			                if(response.avatar === "") {
+			                	document.getElementById("user-img-shown").setAttribute("src", "../../assets/images/user.png");
+			                } else {
+			                	document.getElementById("user-img-shown").setAttribute("src",response.avatar);
+			                }
+			            }
+			        },
+			        error: function(data) {
+	                	// Some error in ajax call
+	                	alert("some Error + ", data);
+	                	redirectBt.click();
+	                }
+	            });
+});
+
+const chatPartHead = document.getElementById("dashboard-chat-part-header");
+const chatPartBody = document.getElementById("dashboard-chat-part-body");
+const welcomeChat = document.getElementById("welcome-chat-sec");
+
+if(chatPartBody.classList.contains('d-none')) {
+	if(welcomeChat.classList.contains('d-flex')) {
+		welcomeChat.classList.remove('d-flex');
+		welcomeChat.classList.add('d-none');
+
+		chatPartHead.classList.remove('d-none');
+		chatPartHead.classList.add('d-flex');
+
+		chatPartBody.classList.remove('d-none');
+		chatPartBody.classList.add('d-flex');
+	}
+}
+
+let url = "wss://" + window.location.host + "/ws/" + val; 
+console.log(url);
+
+const ws = new WebSocket(url);
+
+function appendLog(item) {
+	var doScroll = messages.scrollTop > messages.scrollHeight - messages.clientHeight - 1;
+	messages.appendChild(item);
+	if (doScroll) {
+		messages.scrollTop = messages.scrollHeight - messages.clientHeight;
+	}
+}
+
+if(!window["WebSocket"]) {
+	var item = document.createElement("div");
+	item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+	appendLog(item);
+}
+
+ws.onmessage = function(msg) {
+	console.log(msg.data);
+	if (msg.data.type == "message") {
+		const msgObj = {
+			type : "message",
+			from : msg.data.payload.by,
+			message : msg.data.body,
+			time : msg.data.payload.time,
+		}
+		insertMessage(msgobj);
+	} else if (msg.data.type == "image") {
+		const msgObj = {
+			type : "image",
+			from : msg.data.payload.by,
+			message : msg.data.body,
+			time : msg.data.payload.time,
+		}
+		insertMessage(msgobj);
+	}
+};
+
+			$("#imageChatInp").change(function(){
+				if(this.files && this.files[0]) {
+					file = this.files[0];
+					const reader = new FileReader();
+					let rawData = new ArrayBuffer();
+					reader.readAsDataURL(file)
+					reader.onload = function() {
+
+						let current = new Date();
+						let cDate = current.getDate() + ' ' + monthAsWord[(current.getMonth())] + ' ' + current.getFullYear();
+						let cTime =  current.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+						let dateTime = cDate + ' ' + cTime;
+
+						const m = {
+							type : "image",
+							payload: {
+								by : {{ .UserPhone }},
+								body : reader.result,
+								time : dateTime,
+								room: val
+							}
+						}
+
+						ws.send(JSON.stringify(m));
+					}
+				}
+			});
+
+			ws.onerror = function(evt) {
+				console.log("Webscket error - " + evt);
+			}
+
+			ws.addEventListener("open", function () {
+				const m = {
+					type: "join",
+					payload: {
+						by: {{ .UserPhone }},
+						room: val
+					}
+				}
+				ws.send(JSON.stringify(m))
+			});
+
+			ws.addEventListener("close", function () {
+				const m = {
+					type: "left",
+					payload: {
+						by: {{ .UserPhone }},
+						room: val
+					}
+				}
+				ws.send(JSON.stringify(m))
+			});
+
+			const messageInput = document.querySelector("#msgInp")
+			const ty = document.querySelector(".typing")
+
+			let currentTyping
+
+			ws.addEventListener("message", function (message) {
+				const data = JSON.parse(message.data)
+				switch (data.type) {
+					case "join":
+					join(data.payload)
+					break
+					case "message":
+					add(data.payload)
+					break
+					case "image":
+					addImg(data.payload)
+					break
+					case "left":
+					left(data.payload)
+					break
+					case "typing":
+					typing(data.payload)
+					break
+					case "stoptyping":
+					stoptyping(data.payload)
+					break
+					default:
+					break
+				}
+			})
+
+			//  When user sends a message
+			document.getElementById("chat-form").onsubmit = function (e) {
+				e.preventDefault();
+				let current = new Date();
+				let cDate = current.getDate() + ' ' + monthAsWord[(current.getMonth())] + ' ' + current.getFullYear();
+				let cTime =  current.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+				let dateTime = cDate + ' ' + cTime;
+
+				const m = {
+					type: "message",
+					payload: {
+						body: messageInput.value,
+						time: dateTime,
+						by: {{ .UserPhone }},
+						room: val
+					}
+				}
+				console.log(m)
+				ws.send(JSON.stringify(m))
+				messageInput.value = ""
+			};
+
+			function left(message) {
+				console.log("The user {{ .UserPhone }} has left the group chat!");
+			}
+
+			function join(message) {
+				console.log("The user {{ .UserPhone }} joined in group chat!");
+			}
+
+			function add(message) {
+				console.log("Add message: ", message)
+				let current = new Date();
+				let cDate = current.getDate() + ' ' + monthAsWord[(current.getMonth())] + ' ' + current.getFullYear();
+				let cTime =  current.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+				let dateTime = cDate + ' ' + cTime;
+
+				const msgObj = {
+					type: "text",
+					status: message.status,
+					from : message.by,
+					message : message.body,
+					time : dateTime,
+				}
+				console.log(message.body);
+				insertMessage(msgObj);
+			}
+
+			function addImg(message) {
+				console.log("Add message: ", message)
+				let current = new Date();
+				let cDate = current.getDate() + ' ' + monthAsWord[(current.getMonth())] + ' ' + current.getFullYear();
+				let cTime =  current.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+				let dateTime = cDate + ' ' + cTime;
+
+				const msgObj = {
+					type: "image",
+					status: message.status,
+					from : message.by,
+					message : message.body,
+					time : dateTime,
+				}
+				console.log(message);
+				insertMessage(msgObj);
+			}
+
+			function typing(message) {
+				console.log("typing: ", message)
+				if (message.by === {{ .UserPhone }}) return;
+				ty.textContent = message.by + " is typing ..."
+				currentTyping = message.by
+				console.log("Currently typing: ", currentTyping)
+			}
+
+			function stoptyping(message) {
+				console.log("stoptyping: ", message)
+				if (message.by === {{ .UserPhone }}) return
+					if (message.by !== currentTyping) return
+						ty.textContent = ""
+					currentTyping = null
+				}
+
+				messageInput.addEventListener("focusin", function () {
+					console.log("Focus in")
+					const m = {
+						type: "typing",
+						payload: {
+							by: {{ .UserPhone }},
+							room: val,
+						}
+					}
+					ws.send(JSON.stringify(m))
+				})
+
+				messageInput.addEventListener("focusout", function () {
+					console.log("Focus out")
+					const m = {
+						type: "stoptyping",
+						payload: {
+							by: {{ .UserPhone }},
+							room: val,
+						}
+					}
+					ws.send(JSON.stringify(m))
+				})
+
+				function insertMessage(msgobj) {
+					let item = document.createElement('div');
+					let innerItem = document.createElement("label");
+					let itemTime = document.createElement("label");   
+					let recipient = document.createElement("i");      
+
+					if(msgobj.status === "ADMIN") {
+						innerItem.classList.add("chat-bubble", "ms-auto", "admin-chat-bubble", "py-2", "px-3", "mb-5");
+
+						innerItem.innerText = msgobj.message;
+						appendLog(innerItem);
+					} else if(msgobj.from == {{ .UserPhone }}) {
+						let msgDetails = document.createElement('div');
+						item.classList.add("user-chat-msg-field", "d-flex", "flex-column", "mb-2");
+						innerItem.classList.add("chat-bubble", "user-chat-bubble", "px-3", "py-2", "text-wrap", "word-wrap", "text-break");
+						msgDetails.classList.add("d-flex", "align-items-center");
+						itemTime.classList.add("chat-time","mt-1", "mx-2");
+						itemTime.innerText = msgobj.time;
+
+						console.log("STATUS = " + msgobj.status)
+
+						if (msgobj.status == "SENT") {
+							recipient.classList.add("fas", "fa-check");
+							recipient.setAttribute("style", "color: #ccc;");
+						} else if(msgobj.status == "DELIVERED") {
+							recipient.classList.add("fas", "fa-check-double");
+							recipient.setAttribute("style", "color: #ccc;");
+						} else if(msgobj.status == "READ") {
+							recipient.classList.add("fas", "fa-check-double");
+							recipient.setAttribute("style", "color: #00E0FF;");
+						} else {
+							recipient.classList.add("fa", "fa-exclamation-triangle");
+							recipient.setAttribute("style", "color: #F32013;");
+						}
+
+						msgDetails.appendChild(itemTime);
+						msgDetails.appendChild(recipient);
+
+						if (msgobj.type == "image") {
+							let imageChatTag = document.createElement('img');
+							imageChatTag.setAttribute("id", "imageChatTag");
+							imageChatTag.setAttribute("src", msgobj.message);
+							innerItem.appendChild(imageChatTag);
+						} else {
+							innerItem.innerHTML = msgobj.message;
+						}
+
+						item.appendChild(innerItem);
+						item.appendChild(msgDetails);
+						appendLog(item);
+					} else {
+						item.classList.add("chat-msg-field", "d-flex", "flex-column", "mb-2");
+						innerItem.classList.add("chat-bubble", "px-3", "py-2", "text-wrap", "word-wrap", "text-break");
+						itemTime.classList.add("chat-time","mt-1", "ms-2");
+						itemTime.innerText = msgobj.time;
+
+						if (msgobj.type == "image") {
+							let imageChatTag = document.createElement('img');
+							imageChatTag.setAttribute("id", "imageChatTag");
+							imageChatTag.setAttribute("src", msgobj.message);
+							innerItem.appendChild(imageChatTag);
+						} else {
+							innerItem.innerHTML = msgobj.message;
+						}
+						item.appendChild(innerItem);
+						item.appendChild(itemTime);
+						appendLog(item);
+					}
+					messages.scrollTop = messages.scrollHeight;
+				}
+			}
+		</script>
+		{{ end }}

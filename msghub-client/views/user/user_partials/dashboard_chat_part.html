@@ -1,0 +1,29 @@
+{{ define "dashboard_chat_part" }}
+
+<div id="dashboard-chat-part-header" class="d-none user-dashboard-top-sec chat-head py-2 px-4 d-flex justify-content-between align-items-center">
+	<div class="d-flex align-items-center">
+		<div id="dashboard-chat-part-header-image-wrapper">
+			<img  class="img-fluid" id="dashboard-chat-part-header-image" alt="user profile picture">
+		</div>
+		<label id="chat-user-name" class="mx-3"></label>
+	</div>			
+	<a id="detail-bt"><i class='fas fa-info-circle' style='font-size:28px'></i></a>	
+</div>
+<div id="dashboard-chat-part-body" class="d-none flex-column user-chat-sec">
+	<div id="log" class="message-area py-4 px-3 d-flex flex-column">
+		<p id="encryptione-note" class="msg-encrypt-note admin-msg-note py-2 px-3 mb-5"><i class='fas fa-lock'></i>&nbsp;&nbsp;Messages are end-to-end encrypted. No one outside of this chat, not even Msghub can read them.</p>
+	</div>
+	<div class="mx-3 typing"></div>
+	<div id="ban-msg" class="py-2 mb-2">This group has been banned for <span id="ban-msg-timer"></span> .</div>
+	<div class="keypad-area d-flex align-items-center px-2 overflow-hidden">
+		<button id="file-chat-bt" class="p-2"><i class='fas fa-plus' style='font-size:18px'></i></button>
+		<input id="imageChatInp" type="file" name="imageChatInp" placeholder="Photo" required="" capture hidden>
+		<form name="chatForm" id="chat-form" class="mx-2 d-flex">
+			<a href="#" id="smileyBt" class="px-2 d-flex align-items-center"><i class='far fa-smile-wink' style='font-size:24px;color:#00E0FF;'></i></a>
+			<input id="msgInp" class="p-2" type="text" name="chat-keypad" placeholder="Type something ..." autocomplete="off" autofocus>
+			<button id="sendMsg" type="submit" class="py-1 px-3"><i class="fa fa-paper-plane" style="font-size:24px;color:#00E0FF;"></i></button>
+		</form>
+	</div>
+</div>
+
+{{ end }}

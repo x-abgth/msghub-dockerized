@@ -1,0 +1,4 @@
+.env
+.idea/
+msghub-server/.idea/
+msghub-server/vendor/

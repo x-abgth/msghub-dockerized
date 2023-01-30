@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ .Title }}</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+	<style type="text/css">
+		section{
+			position: relative;
+			height: 100vh;
+			width: 100%;
+			overflow: hidden;
+			background: #eaf6ff;
+			z-index: 10;
+			-webkit-user-select: none;
+			-moz-user-select: none;
+			-ms-user-select: none;
+			user-select: none;
+		}
+
+		section h1{
+			position: absolute;
+			font-size: 45vw;
+			color: rgba(9, 144, 258, 0.1);
+		}
+
+		section nav {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			color: rgba(9, 144, 258, 0.4);
+		}
+
+		section nav p{
+			font-weight: bolder;
+			font-size: 2em;
+		}
+
+		section nav footer{
+			color: rgba(9, 144, 258, 0.4) !important;
+		}
+
+		#no-page-content{
+			position: relative;
+			z-index: 100;
+		}
+
+		#no-page-content h4 {
+			color: #248bcc;
+			text-align: center;
+			font-size: 3vw;
+		}
+
+		#no-page-content a{
+			font-weight: bold;
+			text-decoration: none;
+			background: rgba(9, 144, 258, 1);
+			border: 2px solid rgba(9, 144, 258, 1);
+			border-radius: 25px;
+			color: white;
+		}
+
+		#no-page-content a:hover{
+			border: 2px solid rgba(9, 144, 258, 1);
+			background: transparent;
+			color: rgba(9, 144, 258, 1);
+		}
+	</style>
+</head>
+<body class="row overflow-hidden">
+	<section class="d-flex justify-content-center align-items-center">
+		<nav class="row px-5 py-2">
+			<blockquote class="blockquote">
+				<p class="mb-0">MSGHUB</p>
+				<footer class="blockquote-footer">Make your moments memorable!</footer>
+			</blockquote>
+		</nav>
+
+		<h1>404</h1>
+		<div id="no-page-content" class="d-flex flex-column justify-content-center align-items-center">
+			<h4 class="mb-5">This page does not exist!</h4>
+			<a href="/user/dashboard" class="py-2 px-5">Take me back to home</a>
+		</div>
+	</section>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+{{ template "header_part" . }}
+	<style type="text/css">
+		*{
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+			overflow-x: hidden;
+		}
+
+		section.members-page{
+			background-color: #E2F3F5 !important;
+			display: flex;
+			flex-direction: column;
+			overflow-x: hidden;
+			-ms-overflow-style: none;  /* IE and Edge */
+			scrollbar-width: none;  /* Firefox */
+			overflow-y: -moz-scrollbars-none;
+		}
+
+		section.members-page header{
+			background: white;
+			height: 10vh;
+			box-shadow: rgba(0, 0, 0, 0.45) 0px 0px 15px -5px;
+		}
+
+		section.members-page header a{
+			text-decoration: none;
+			color: black;
+		}
+
+		.members-page-search-bar{
+			display: flex;
+			width: 80%;
+		}
+
+		.members-page-search-bar input[type="text"] {
+			width: 100%;
+			border: none;
+			outline: none;
+			border-bottom: 1px solid #757575;
+			background-color: transparent;
+		}
+
+		#final-done-bt{
+			color: #00E0FF;
+			font-weight: bold;
+		}
+
+		a#final-done-bt:hover{
+			background-color: #00E0FF10;
+		}
+
+		section.members-page .container{
+			overflow: hidden;
+			-ms-overflow-style: none;  /* IE and Edge */
+			scrollbar-width: none;  /* Firefox */
+			overflow: -moz-scrollbars-none;
+		}
+
+		section.members-page .container a{
+			text-decoration: none;
+			color: black;
+		}
+
+		section.members-page .container a .members-page-about{
+			color: #757575;
+		}
+
+		.members-page-toggler{
+			width: 25px;
+			height: 25px;
+			border-radius: 50%;
+			border: 1px solid #00E0FF;	
+		}
+
+		.members-page-toggler.active{
+			background-color: #00E0FF;
+		}
+
+		.members-page-toggler i{
+			color: white;
+			display: none;
+		}
+
+		.members-page-toggler.active i{
+			display: block;
+		}		
+	</style>
+
+	<section class="row members-page add-group-members-page h-100">
+		<header class="add-group-members-header d-flex justify-content-evenly align-items-center">
+			<a href="/user/dashboard" class="mx-4 d-flex justify-content-center align-items-center">
+				<i class="fa fa-close" style="font-size:28px;"></i>
+			</a>
+			<div class="members-page-search-bar add-group-members-bar d-flex justify-content-center align-items-center">
+				<i class="fa fa-search me-3" style="font-size:24px; color: #CCCCCC;"></i>				
+				<input type="text" name="show-people-search" placeholder="Search here..." autocomplete="off">
+			</div>
+		</header>
+		<div class="container py-4 px-5">
+			{{ if . }}
+				{{ range . }}
+					<a href="/user/dashboard/new-chat-started/{{ .UserPhone }}">
+						<div class="d-flex justify-content-center align-items-end mb-2 p-3 bg-white recent-chat-card">
+							<div class="recent-chat-dp-wrapper">
+								{{ if .UserAvatarUrl }}
+									<img class="img-fluid" src="{{ .UserAvatarUrl }}" alt="user profile picture">
+								{{ else }}
+									<img src="../../assets/images/user.png" alt="user profile picture">
+								{{ end }}
+							</div>
+							<div class="w-100 d-flex flex-column px-3 mx-3">
+								<label>{{ .UserName }}</label>
+								<label class="members-page-about">{{ .UserAbout }}</label>
+							</div>
+						</div>
+					</a>
+				{{ end }}
+			{{ end }}
+		</div>
+	</section>
+	<script type="text/javascript" src="../../assets/js/user_dashboard_functions.js"></script>
+
+{{ template "footer_part" . }}

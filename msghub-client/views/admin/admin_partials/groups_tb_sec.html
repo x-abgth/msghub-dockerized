@@ -1,0 +1,57 @@
+{{ define "groups_tb_sec" }}
+	
+	<div class="row my-5 complete-table-wrap" id="groups-table-sec">
+	  <h3 class="fs-4 mb-3">Groups Table</h3>
+	  <div class="col">
+	    <table class="table bg-white rounded shadow-sm  table-hover"  id="groups-table">
+	      <thead>
+	      <tr>
+	        <th scope="col" width="50">group_id</th>
+	        <th scope="col">group_name</th>
+	        <th scope="col">group_avatar</th>
+	        <th scope="col">group_about</th>
+	        <th scope="col">group_creator</th>
+	        <th scope="col">group_created_date</th>
+	        <th scope="col">group_total_members</th>
+	        <th scope="col">is_banned</th>
+	        <th scope="col">operations</th>
+	      </tr>
+	      </thead>
+	      <tbody>
+	      {{ range .GroupTbContent }}
+	        <tr>
+	          <th scope="row">{{ .Id }}</th>
+	          <td>{{ .Name }}</td>
+	          <td>{{ .Image }}</td>
+	          <td>{{ .About }}</td>
+	          <td>{{ .Owner }}</td>
+	          <td>{{ .CreatedDate }}</td>
+	          <td>{{ .NoOfMembers }}</td>
+	          <td>{{ .IsBanned }}</td>
+	          <td>
+	        	<div class="dropdown">
+		           	{{ if .IsBanned }}
+					  	<button class="btn btn-secondary btn-success" type="button" onclick="location.href='/admin/group-unblock/{{ .Id }}'">
+					    Unban
+						</button>
+					{{ else }}
+					<button class="btn btn-secondary btn-danger dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+					    Ban
+					</button>
+					{{ end }}
+					  	<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+					    	<a class="dropdown-item" href="/admin/group-block/{{ .Id }}/day">1 Day Ban</a>
+					    	<a class="dropdown-item" href="/admin/group-block/{{ .Id }}/week">1 Week Ban</a>
+					    	<a class="dropdown-item" href="/admin/group-block/{{ .Id }}/month">1 Month Ban</a>
+					    	<a class="dropdown-item" href="/admin/group-block/{{ .Id }}/permanent">Permanent Ban</a>
+						</div>
+				</div>
+	          </td>
+	        </tr>
+	      {{ end }}
+	      </tbody>
+	    </table>
+	  </div>
+	</div>
+
+{{ end }}

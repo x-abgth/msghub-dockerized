@@ -1,0 +1,52 @@
+{{ define "users_tb_sec" }}
+
+	<div class="row my-5 complete-table-wrap" id="users-table-sec">
+	  <h3 class="fs-4 mb-3">Users Table</h3>
+	  <div class="col">
+	    <table class="table bg-white rounded shadow-sm  table-hover"  id="users-table">
+	      <thead>
+	      <tr>
+	        <th scope="col" width="50">user_phone_no</th>
+	        <th scope="col">user_name</th>
+	        <th scope="col">user_avatar</th>
+	        <th scope="col">user_about</th>
+	        <th scope="col">is_blocked</th>
+	        <th scope="col">operations</th>
+	      </tr>
+	      </thead>
+	      <tbody>
+	      {{ range .UsersTbContent }}
+	        <tr>
+	          <th scope="row">{{ .UserPhone }}</th>
+	          <td>{{ .UserName }}</td>
+	          <td>{{ .UserAvatarUrl }}</td>
+	          <td>{{ .UserAbout }}</td>
+	          <td>{{ .UserBlocked }}</td>
+	          <td>
+	           <div class="dropdown">
+
+	           	{{ if .UserBlocked }}
+				  <button class="btn btn-secondary btn-success" onclick="location.href='/admin/user-unblock/{{ .UserPhone }}'" type="button">
+				    Unblock
+				  </button>
+				{{ else }}
+				 <button class="btn btn-secondary btn-danger dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				    Block
+				  </button>
+				{{ end }}
+				  <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+				    <a class="dropdown-item" href="/admin/user-block/{{ .UserPhone }}/day">1 Day Block</a>
+				    <a class="dropdown-item" href="/admin/user-block/{{ .UserPhone }}/week">1 Week Block</a>
+				    <a class="dropdown-item" href="/admin/user-block/{{ .UserPhone }}/month">1 Month Block</a>
+				    <a class="dropdown-item" href="/admin/user-block/{{ .UserPhone }}/permanent">Permanent Block</a>
+				  </div>
+				</div>
+	          </td>
+	        </tr>
+	      {{ end }}
+	      </tbody>
+	    </table>
+	  </div>
+	</div>
+
+{{ end }}
