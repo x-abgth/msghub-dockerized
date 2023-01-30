@@ -16,8 +16,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/x-abgth/msghub/msghub-server/logic"
-	"github.com/x-abgth/msghub/msghub-server/utils"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/logic"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/utils"
 )
 
 /*

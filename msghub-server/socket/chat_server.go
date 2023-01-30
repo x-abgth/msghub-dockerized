@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/x-abgth/msghub/msghub-server/logic"
-	"github.com/x-abgth/msghub/msghub-server/models"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/logic"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 )
 
 //	Because our ChatServer acts like a hub for connecting the parts of our chat application,

@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	jwtPkg "github.com/x-abgth/msghub/msghub-server/utils/jwt"
+	jwtPkg "github.com/x-abgth/msghub-dockerized/msghub-server/utils/jwt"
 )
 
 func UserAuthorizationBeforeLogin(handler http.HandlerFunc) http.HandlerFunc {

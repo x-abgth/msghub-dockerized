@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/x-abgth/msghub/msghub-server/models"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 
 	"github.com/golang-jwt/jwt/v4"
 )

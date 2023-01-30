@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/x-abgth/msghub/msghub-server/models"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 )
 
 type Message struct {

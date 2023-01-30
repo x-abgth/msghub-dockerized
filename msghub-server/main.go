@@ -12,13 +12,13 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
-	"github.com/x-abgth/msghub/msghub-server/handlers/routes"
-	"github.com/x-abgth/msghub/msghub-server/models"
-	"github.com/x-abgth/msghub/msghub-server/repository"
-	"github.com/x-abgth/msghub/msghub-server/socket"
-	"github.com/x-abgth/msghub/msghub-server/template"
-	"github.com/x-abgth/msghub/msghub-server/utils"
-	utilJwt "github.com/x-abgth/msghub/msghub-server/utils/jwt"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/handlers/routes"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/socket"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/template"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/utils"
+	utilJwt "github.com/x-abgth/msghub-dockerized/msghub-server/utils/jwt"
 )
 
 func init() {

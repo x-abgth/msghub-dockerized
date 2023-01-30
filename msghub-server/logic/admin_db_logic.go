@@ -3,9 +3,9 @@ package logic
 import (
 	"errors"
 
-	"github.com/x-abgth/msghub/msghub-server/models"
-	"github.com/x-abgth/msghub/msghub-server/repository"
-	"github.com/x-abgth/msghub/msghub-server/utils"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/utils"
 )
 
 type AdminDb struct {

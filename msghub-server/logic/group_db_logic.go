@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/x-abgth/msghub/msghub-server/models"
-	"github.com/x-abgth/msghub/msghub-server/repository"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
 )
 
 type GroupDataLogicModel struct {

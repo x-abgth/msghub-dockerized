@@ -7,13 +7,13 @@ import (
 	"os"
 	"time"
 
-	jwtPkg "github.com/x-abgth/msghub/msghub-server/utils/jwt"
+	jwtPkg "github.com/x-abgth/msghub-dockerized/msghub-server/utils/jwt"
 
 	"github.com/gorilla/mux"
-	"github.com/x-abgth/msghub/msghub-server/logic"
-	"github.com/x-abgth/msghub/msghub-server/models"
-	"github.com/x-abgth/msghub/msghub-server/template"
-	"github.com/x-abgth/msghub/msghub-server/utils"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/logic"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/template"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/utils"
 )
 
 type AdminHandlerStruct struct {
