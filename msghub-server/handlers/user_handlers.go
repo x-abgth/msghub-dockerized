@@ -8,12 +8,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/x-abgth/msghub/msghub-server/models"
-	"github.com/x-abgth/msghub/msghub-server/template"
-	"github.com/x-abgth/msghub/msghub-server/utils"
-	jwtPkg "github.com/x-abgth/msghub/msghub-server/utils/jwt"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/template"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/utils"
+	jwtPkg "github.com/x-abgth/msghub-dockerized/msghub-server/utils/jwt"
 
-	"github.com/x-abgth/msghub/msghub-server/logic"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/logic"
 
 	"github.com/gorilla/mux"
 

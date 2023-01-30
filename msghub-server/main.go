@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
-	"github.com/x-abgth/msghub-dockerized/msghub-server/handlers/routes"
+	"github.com/x-abgth/msghub-dockerized/handlers/routes"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/socket"
