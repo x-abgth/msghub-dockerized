@@ -1,16 +1,16 @@
-module github.com/x-abgth/msghub
+module github.com/x-abgth/msghub-dockerized
 
 go 1.19
 
 require (
-	github.com/aws/aws-sdk-go v1.44.186
+	github.com/aws/aws-sdk-go v1.44.151
 	github.com/golang-jwt/jwt/v4 v4.4.3
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/joho/godotenv v1.4.0
 	github.com/lib/pq v1.10.7
-	github.com/twilio/twilio-go v1.3.1
+	github.com/twilio/twilio-go v1.3.2
 	github.com/x-abgth/msghub/msghub-server v0.0.0-20221130064315-4b36373d7dc1
 	gocloud.dev v0.28.0
 	golang.org/x/crypto v0.5.0
