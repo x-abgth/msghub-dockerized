@@ -5,14 +5,14 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/x-abgth/msghub/msghub-server/handlers"
-	"github.com/x-abgth/msghub/msghub-server/handlers/middlewares"
-	"github.com/x-abgth/msghub/msghub-server/socket"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/handlers"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/handlers/middlewares"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/socket"
 
-	jwtPkg "github.com/x-abgth/msghub/msghub-server/utils/jwt"
+	jwtPkg "github.com/x-abgth/msghub-dockerized/msghub-server/utils/jwt"
 
 	"github.com/gorilla/mux"
-	"github.com/x-abgth/msghub/msghub-server/logic"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/logic"
 )
 
 func userRoutes(theMux *mux.Router, s *socket.WsServer) {

@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/x-abgth/msghub/msghub-server/socket"
-	"github.com/x-abgth/msghub/msghub-server/template"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/socket"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/template"
 )
 
 func InitializeRoutes(theMux *mux.Router, server *socket.WsServer) {

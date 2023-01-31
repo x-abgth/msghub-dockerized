@@ -16,15 +16,17 @@ type Admin struct {
 }
 
 func (admin Admin) CreateAdminTable() error {
+	fmt.Println("Creating Admin table")
 	_, err := models.SqlDb.Exec(`CREATE TABLE IF NOT EXISTS admins(admin_id BIGSERIAL PRIMARY KEY NOT NULL, admin_name TEXT NOT NULL, admin_pass TEXT NOT NULL)`)
 	if err == nil {
 		err1 := admin.InsertAdminToDb("root", "toor")
 		if err1 != nil {
 			return err1
 		}
+		return nil
+	} else {
+		return err
 	}
-
-	return err
 }
 
 func (admin Admin) InsertAdminToDb(name, pass string) error {

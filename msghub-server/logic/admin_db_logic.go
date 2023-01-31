@@ -2,6 +2,7 @@ package logic
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
@@ -17,6 +18,7 @@ type AdminDb struct {
 // MigrateAdminDb :  Creates table for admin according the struct Admin
 func (admin AdminDb) MigrateAdminDb() error {
 	err := admin.repo.CreateAdminTable()
+	fmt.Println("Admin table created - ", err)
 	return err
 }
 

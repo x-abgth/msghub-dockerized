@@ -24,11 +24,14 @@ type AdminHandlerStruct struct {
 
 func (admin *AdminHandlerStruct) AdminLoginPageHandler(w http.ResponseWriter, r *http.Request) {
 
+	fmt.Println("Admin handler function reached!")
 	err1 := admin.logics.MigrateAdminDb()
 	if err1 != nil {
-		log.Println("Error creating user table : ", err1.Error())
+		log.Println("Error creating admin table : ", err1.Error())
 		os.Exit(1)
 	}
+
+	fmt.Println("Admin table should be created by now!")
 
 	c, err1 := r.Cookie("adminToken")
 	if err1 != nil {

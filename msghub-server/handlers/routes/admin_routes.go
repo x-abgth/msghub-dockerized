@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"github.com/x-abgth/msghub/msghub-server/handlers"
-	"github.com/x-abgth/msghub/msghub-server/handlers/middlewares"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/handlers"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/handlers/middlewares"
 
 	"github.com/gorilla/mux"
 )
