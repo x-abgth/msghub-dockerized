@@ -11,6 +11,8 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_DB=msghubdb
       - POSTGRES_PASSWORD=abgthgo
+    volumes:
+      - ./data:/var/lib/postgresql/data
 
   api:
     build:

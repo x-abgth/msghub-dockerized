@@ -2,23 +2,19 @@ package logic
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
-	"github.com/x-abgth/msghub-dockerized/msghub-server/utils"
 )
 
 type AdminDb struct {
 	repo repository.Admin
 	user repository.User
-	err  error
 }
 
 // MigrateAdminDb :  Creates table for admin according the struct Admin
 func (admin AdminDb) MigrateAdminDb() error {
 	err := admin.repo.CreateAdminTable()
-	fmt.Println("Admin table created - ", err)
 	return err
 }
 
@@ -34,7 +30,7 @@ func (admin AdminDb) AdminLoginLogic(username, password string) error {
 	}
 
 	if data.AdminName == username {
-		if utils.CheckPasswordMatch(password, data.AdminPass) {
+		if data.AdminPass == password {
 			return nil
 		}
 		return errors.New("you have entered wrong password, please try again")

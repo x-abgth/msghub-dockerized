@@ -406,9 +406,6 @@ func (c *GClient) GroupReadPump() {
 			fmt.Println("Error while reading websocket message: ", err)
 			return
 		}
-
-		fmt.Println(message.Payload.Body)
-
 		switch message.Type {
 		case "join":
 			c.IsJoined = true

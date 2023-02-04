@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -10,6 +11,7 @@ import (
 )
 
 func InitializeRoutes(theMux *mux.Router, server *socket.WsServer) {
+	fmt.Println("Initilizing routes")
 	userRoutes(theMux, server)
 	adminRoutes(theMux)
 	theMux.NotFoundHandler = http.HandlerFunc(noPageHandler)

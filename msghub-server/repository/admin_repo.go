@@ -16,17 +16,27 @@ type Admin struct {
 }
 
 func (admin Admin) CreateAdminTable() error {
-	fmt.Println("Creating Admin table")
-	_, err := models.SqlDb.Exec(`CREATE TABLE IF NOT EXISTS admins(admin_id BIGSERIAL PRIMARY KEY NOT NULL, admin_name TEXT NOT NULL, admin_pass TEXT NOT NULL)`)
-	if err == nil {
-		err1 := admin.InsertAdminToDb("root", "toor")
-		if err1 != nil {
-			return err1
-		}
-		return nil
-	} else {
+	_, err := models.SqlDb.Exec(`CREATE TABLE IF NOT EXISTS admins(admin_id BIGSERIAL PRIMARY KEY NOT NULL, admin_name TEXT DEFAULT 'root' NOT NULL, admin_pass TEXT DEFAULT 'toor' NOT NULL);`)
+	if err != nil {
 		return err
 	}
+
+	fmt.Println("Admin table created successfully!")
+
+	var count int
+	err = models.SqlDb.QueryRow("SELECT COUNT(*) FROM admins;").Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count == 0 {
+		_, err := models.SqlDb.Exec(`INSERT INTO admins(admin_name, admin_pass) VALUES(DEFAULT, DEFAULT);`)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (admin Admin) InsertAdminToDb(name, pass string) error {
@@ -264,7 +274,7 @@ func (admin Admin) GetDeletedUserData() ([]models.UserModel, error) {
 		res []models.UserModel
 	)
 	rows, err := models.SqlDb.Query(
-		`SELECT user_ph_no, user_name, user_avatar, user_about, is_blocked, delete_time FROM deleted_users;`)
+		`SELECT user_ph_no, user_avatar, user_about, is_blocked, delete_time FROM deleted_users;`)
 	if err != nil {
 		return nil, errors.New("an unknown error occurred, please try again")
 	}

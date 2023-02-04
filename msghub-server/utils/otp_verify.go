@@ -54,10 +54,10 @@ func CheckOtp(toPhone, code string) bool {
 		fmt.Println(err.Error())
 		return false
 	} else if *resp.Status == "approved" {
-		fmt.Println("Correct!")
+		fmt.Println("Entered OTP is valid!")
 		return true
 	} else {
-		fmt.Println("Incorrect!")
+		fmt.Println("Entered OTP is invalid!")
 		return false
 	}
 }

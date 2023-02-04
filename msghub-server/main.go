@@ -72,6 +72,7 @@ func run() error {
 	wsServer := socket.NewWebSocketServer()
 	go wsServer.Run()
 
+	fmt.Println("The routes are about to initialize")
 	routes.InitializeRoutes(newMux, wsServer)
 
 	server := &http.Server{Addr: ":9000", Handler: newMux}

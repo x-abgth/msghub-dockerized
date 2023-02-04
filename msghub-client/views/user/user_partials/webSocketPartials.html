@@ -336,7 +336,7 @@ if(chatPartBody.classList.contains('d-none')) {
 }
 
 			// Make it as like for the group 
-			let url = "wss://" + window.location.host + "/ws/group/" + val; 
+			let url = "ws://" + window.location.host + "/ws/group/" + val; 
 			console.log(url);
 
 			const ws = new WebSocket(url);
@@ -818,7 +818,7 @@ if(chatPartBody.classList.contains('d-none')) {
 	}
 }
 
-let url = "wss://" + window.location.host + "/ws/" + val; 
+let url = "ws://" + window.location.host + "/ws/" + val; 
 console.log(url);
 
 const ws = new WebSocket(url);
