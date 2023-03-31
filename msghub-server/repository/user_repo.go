@@ -8,6 +8,37 @@ import (
 	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 )
 
+type UserRepository interface {
+	// User table
+	CreateUserTable() error
+	CreateDeletedUserTable() error
+	RegisterUser(string, string, string) (bool, error)
+	ReRegisterDeletedUser(string, string, string) error
+	GetUserDataUsingPhone(string) (int, models.UserModel, error)
+	UserDuplicationStatus(string) int
+	CheckDeletedUser(string) int
+	GetUserData(string) (models.UserModel, error)
+	GetRecentChatList(string) ([]models.MessageModel, error)
+	GetAllUsersData(string) ([]models.UserModel, error)
+	UpdateUserData(models.UserModel) error
+	UndoAdminBlockRepo(string) error
+	GetUserBlockList(string) (string, error)
+	DeleteUserAccountRepo(string, string) error
+	UpdateUserBlockList(string, string) error
+	// Storie table
+	AddStoryRepo(Storie) error
+	CreateStoiesTable() error
+	GetStoryViewersRepo(string) string
+	UpdateStoryViewersRepo(string, string) error
+	DeleteStoryRepo(string) error
+	CheckUserStory(string) (bool, int)
+	UpdateStoryStatusRepo(string, string, string) error
+	GetAllUserStories() []Storie
+	// Group table
+	GetGroupForUser(string) ([]int, error)
+	UnblockGroupRepo(string) error
+}
+
 type User struct {
 	UserPhNo        string  `json:"user_ph_no"`
 	UserName        string  `json:"user_name"`

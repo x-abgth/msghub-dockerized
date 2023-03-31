@@ -214,6 +214,15 @@ func (group GroupDataLogicModel) GetAllGroupMembersData(id string) []models.Grou
 	return res
 }
 
+func (group GroupDataLogicModel) GetGroupRecentChats(id int) (models.GrpMsgModel, error) {
+	data, err := group.messageGroupTb.GetRecentGroupMessages(id)
+	if err != nil {
+		return models.GrpMsgModel{}, err
+	}
+
+	return data, nil
+}
+
 func (group GroupDataLogicModel) CheckUserLeftTheGroup(uid, gid string) bool {
 	val := group.userGroupRelation.IsUserInGroupRepo(gid, uid)
 	if val == "" || val == "nil" {

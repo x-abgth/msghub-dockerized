@@ -28,6 +28,7 @@ func NewWebSocketServer() *WsServer {
 		unregister: make(chan *Client),
 		broadcast:  make(chan *WSMessage),
 	}
+
 }
 
 // Run our websocket server, accepting various requests
@@ -59,6 +60,11 @@ func (server *WsServer) unregisterClient(client *Client) {
 	//server.notifyClientLeft(client)
 	delete(server.clients, client)
 }
+
+// table1 - id, name, email
+// table2 - id, batch, phone
+
+// SELECT table1.id, table1.name, table2.phone FROM INNER JOIN table1.id ON table2.id;
 
 // If the client send a message, it broadcasts to all the other users
 func (server *WsServer) broadcastToClients(m *WSMessage) {

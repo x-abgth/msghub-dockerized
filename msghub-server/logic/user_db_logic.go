@@ -15,8 +15,9 @@ import (
 
 type UserDb struct {
 	userData repository.User
-	groupMsg repository.GroupMessage
-	err      error
+	// groupMsg repository.GroupMessage
+	// userData repository.UserRepository
+	err error
 }
 
 // MigrateUserDb :  Creates table for user according the struct User
@@ -360,8 +361,10 @@ func (u *UserDb) GetDataForDashboardLogic(phone string) (models.UserDashboardMod
 
 	//  GETTING GROUP MESSAGES
 	var groupMessages []models.GrpMsgModel
+	var grp GroupDataLogicModel
+
 	for i := range userGroups {
-		data, err := u.groupMsg.GetRecentGroupMessages(userGroups[i])
+		data, err := grp.GetGroupRecentChats(userGroups[i])
 		if err != nil {
 			log.Println(err)
 			break
