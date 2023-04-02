@@ -20,3 +20,14 @@ type GrpMsgModel struct {
 	ContentType string
 	Order       float64
 }
+
+type Message struct {
+	MsgId       int    `json:"msg_id"`
+	FromUserId  string `json:"from_user_id"`
+	ToUserId    string `json:"to_user_id"`
+	Content     string `json:"content"`
+	ContentType string `json:"content_type"`
+	SentTime    string `json:"sent_time"`
+	Status      string `json:"status"`
+	IsRecent    bool   `json:"is_recent"`
+}

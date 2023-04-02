@@ -7,38 +7,14 @@ import (
 	"time"
 
 	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
-	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
 )
 
-type GroupDataLogicModel struct {
-	users             repository.User
-	groupTb           repository.Group
-	userGroupRelation repository.UserGroupRelation
-	messageGroupTb    repository.GroupMessage
-}
-
-// MigrateUserDb :  Creates table for user according the struct User
-func (group GroupDataLogicModel) MigrateGroupDb() error {
-	err := group.groupTb.CreateGroupTable()
-	return err
-}
-
-func (group GroupDataLogicModel) MigrateUserGroupDb() error {
-	err := group.userGroupRelation.CreateUserGroupRelationTable()
-	return err
-}
-
-func (group GroupDataLogicModel) MigrateGroupMessagesDb() error {
-	err := group.messageGroupTb.CreateGroupMessageTable()
-	return err
-}
-
-func (group GroupDataLogicModel) CreateGroupAndInsertDataLogic(groupData models.GroupModel) (bool, error) {
+func (u *userDbLogic) CreateGroupAndInsertDataLogic(groupData models.GroupModel) (bool, error) {
 	// Get date of the group created
 	t := time.Now()
 	dateOfCreation := t.Format("02/01/2006")
 
-	data := repository.Group{
+	data := models.Group{
 		GroupName:         groupData.Name,
 		GroupAvatar:       groupData.Image,
 		GroupAbout:        groupData.About,
@@ -48,19 +24,19 @@ func (group GroupDataLogicModel) CreateGroupAndInsertDataLogic(groupData models.
 		IsBanned:          false,
 	}
 
-	id, err := repository.CreateGroup(data)
+	id, err := u.groupRepository.CreateGroup(data)
 	if err != nil {
 		log.Println(err.Error())
 		return false, err
 	}
 
-	err1 := group.userGroupRelation.CreateUserGroupRelation(id, groupData.Owner, "admin")
+	err1 := u.groupRepository.CreateUserGroupRelation(id, groupData.Owner, "admin")
 	if err != nil {
 		log.Println(err1.Error())
 		return false, err1
 	}
 	for i := range groupData.Members {
-		err := group.userGroupRelation.CreateUserGroupRelation(id, groupData.Members[i], "member")
+		err := u.groupRepository.CreateUserGroupRelation(id, groupData.Members[i], "member")
 		if err != nil {
 			log.Println(err.Error())
 			return false, err
@@ -73,7 +49,7 @@ func (group GroupDataLogicModel) CreateGroupAndInsertDataLogic(groupData models.
 		Content:  "+91 " + groupData.Owner + " created a group named " + groupData.Name + ".",
 		Time:     time.Now().Format("2 Jan 2006 3:04:05 PM"),
 	}
-	err2 := group.InsertMessagesToGroup(msg)
+	err2 := u.InsertMessagesToGroup(msg)
 	if err2 != nil {
 		return false, err2
 	}
@@ -81,7 +57,7 @@ func (group GroupDataLogicModel) CreateGroupAndInsertDataLogic(groupData models.
 	return true, nil
 }
 
-func (group GroupDataLogicModel) AddGroupMembers(gid string, members []string) error {
+func (u *userDbLogic) AddGroupMembers(gid string, members []string) error {
 	id, err := strconv.Atoi(gid)
 	if err != nil {
 		return err
@@ -90,40 +66,40 @@ func (group GroupDataLogicModel) AddGroupMembers(gid string, members []string) e
 		msg := models.GroupMessageModel{
 			GroupId:  gid,
 			SenderId: "admin",
-			Content:  "+91 " + members[i] + " has been added to the group.",
+			Content:  "+91 " + members[i] + " has been added to the u.groupRepository.",
 			Status:   "SENT",
 			Time:     time.Now().Format("2 Jan 2006 3:04:05 PM"),
 		}
 
-		err = group.InsertMessagesToGroup(msg)
+		err = u.InsertMessagesToGroup(msg)
 		if err != nil {
 			return err
 		}
 
-		str := group.userGroupRelation.IsUserInGroupRepo(gid, members[i])
+		str := u.groupRepository.IsUserInGroupRepo(gid, members[i])
 		if str == "nil" {
-			err := group.userGroupRelation.UserGroupStatusUpdateRepo(gid, members[i])
+			err := u.groupRepository.UserGroupStatusUpdateRepo(gid, members[i])
 			if err != nil {
 				return err
 			}
 			continue
 		}
 
-		err := group.userGroupRelation.CreateUserGroupRelation(id, members[i], "member")
+		err := u.groupRepository.CreateUserGroupRelation(id, members[i], "member")
 		if err != nil {
 			return err
 		}
 
 	}
 
-	val := group.groupTb.GetGroupMemberCount(gid)
+	val := u.groupRepository.GetGroupMemberCount(gid)
 	valI, err := strconv.Atoi(val)
 	if err != nil {
 		return err
 	}
 
 	valI += len(members)
-	err = group.groupTb.UpdateGroupMemberCount(valI, gid)
+	err = u.groupRepository.UpdateGroupMemberCount(valI, gid)
 	if err != nil {
 		return err
 	}
@@ -131,22 +107,24 @@ func (group GroupDataLogicModel) AddGroupMembers(gid string, members []string) e
 	return nil
 }
 
-func (group GroupDataLogicModel) InsertMessagesToGroup(message models.GroupMessageModel) error {
+func (u *userDbLogic) InsertMessagesToGroup(message models.GroupMessageModel) error {
 	var (
 		err error
 	)
 
-	group.messageGroupTb.GroupId, err = strconv.Atoi(message.GroupId)
+	var grp models.GroupMessage
+
+	grp.GroupId, err = strconv.Atoi(message.GroupId)
 	if err != nil {
 		return err
 	}
-	group.messageGroupTb.SenderId = message.SenderId
-	group.messageGroupTb.MessageContent = message.Content
-	group.messageGroupTb.ContentType = message.Type
-	group.messageGroupTb.Status = message.Status
-	group.messageGroupTb.SentTime = message.Time
+	grp.SenderId = message.SenderId
+	grp.MessageContent = message.Content
+	grp.ContentType = message.Type
+	grp.Status = message.Status
+	grp.SentTime = message.Time
 
-	err1 := group.messageGroupTb.InsertGroupMessagesRepo(group.messageGroupTb)
+	err1 := u.groupRepository.InsertGroupMessagesRepo(grp)
 	if err1 != nil {
 		return err1
 	}
@@ -154,13 +132,13 @@ func (group GroupDataLogicModel) InsertMessagesToGroup(message models.GroupMessa
 	return nil
 }
 
-func (group GroupDataLogicModel) GetAllGroupMessagesLogic(groupID string) ([]models.MessageModel, error) {
+func (u *userDbLogic) GetAllGroupMessagesLogic(groupID string) ([]models.MessageModel, error) {
 	id, err := strconv.Atoi(groupID)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := group.messageGroupTb.GetAllMessagesFromGroup(id)
+	data, err := u.groupRepository.GetAllMessagesFromGroup(id)
 	if err != nil {
 		return nil, err
 	}
@@ -184,9 +162,9 @@ func (group GroupDataLogicModel) GetAllGroupMessagesLogic(groupID string) ([]mod
 	return data, nil
 }
 
-func (group GroupDataLogicModel) GetAllGroupMembersData(id string) []models.GroupMembersModel {
+func (u *userDbLogic) GetAllGroupMembersData(id string) []models.GroupMembersModel {
 	// First get all the members id
-	data := group.userGroupRelation.GetAllTheGroupMembersRepo(id)
+	data := u.groupRepository.GetAllTheGroupMembersRepo(id)
 
 	// Secondly get details of the members like - avatar, name, number
 	var res []models.GroupMembersModel
@@ -198,7 +176,7 @@ func (group GroupDataLogicModel) GetAllGroupMembersData(id string) []models.Grou
 			isAdmin = false
 		}
 
-		uData, err := group.users.GetUserData(data[i])
+		uData, err := u.userRepository.GetUserData(data[i])
 		if err != nil {
 			return res
 		}
@@ -214,8 +192,8 @@ func (group GroupDataLogicModel) GetAllGroupMembersData(id string) []models.Grou
 	return res
 }
 
-func (group GroupDataLogicModel) GetGroupRecentChats(id int) (models.GrpMsgModel, error) {
-	data, err := group.messageGroupTb.GetRecentGroupMessages(id)
+func (u *userDbLogic) GetGroupRecentChats(id int) (models.GrpMsgModel, error) {
+	data, err := u.groupRepository.GetRecentGroupMessages(id)
 	if err != nil {
 		return models.GrpMsgModel{}, err
 	}
@@ -223,8 +201,8 @@ func (group GroupDataLogicModel) GetGroupRecentChats(id int) (models.GrpMsgModel
 	return data, nil
 }
 
-func (group GroupDataLogicModel) CheckUserLeftTheGroup(uid, gid string) bool {
-	val := group.userGroupRelation.IsUserInGroupRepo(gid, uid)
+func (u *userDbLogic) CheckUserLeftTheGroup(uid, gid string) bool {
+	val := u.groupRepository.IsUserInGroupRepo(gid, uid)
 	if val == "" || val == "nil" {
 		return true
 	}
@@ -232,34 +210,34 @@ func (group GroupDataLogicModel) CheckUserLeftTheGroup(uid, gid string) bool {
 	return false
 }
 
-func (group GroupDataLogicModel) GetGroupDetailsLogic(gId string) (models.GroupModel, error) {
+func (u *userDbLogic) GetGroupDetailsLogic(gId string) (models.GroupModel, error) {
 	id, err := strconv.Atoi(gId)
 	if err != nil {
 		return models.GroupModel{}, err
 	}
 
-	data, err := group.groupTb.GetGroupDetailsRepo(id)
+	data, err := u.groupRepository.GetGroupDetailsRepo(id)
 	return data, err
 }
 
-func (group GroupDataLogicModel) CheckUserIsInGroup(gId, uId string) bool {
-	val := group.userGroupRelation.IsUserInGroupRepo(gId, uId)
+func (u *userDbLogic) CheckUserIsInGroup(gId, uId string) bool {
+	val := u.groupRepository.IsUserInGroupRepo(gId, uId)
 	if val == "" || val == "nil" {
 		return false
 	}
 	return true
 }
 
-func (group GroupDataLogicModel) CheckUserIsAdmin(gId, uId string) bool {
-	role := group.userGroupRelation.IsUserGroupAdminRepo(gId, uId)
+func (u *userDbLogic) CheckUserIsAdmin(gId, uId string) bool {
+	role := u.groupRepository.IsUserGroupAdminRepo(gId, uId)
 	if role == "admin" {
 		return true
 	}
 	return false
 }
 
-func (group GroupDataLogicModel) UserLeftTheGroupLogic(groupId, userId, msg string) error {
-	err := group.userGroupRelation.UserLeftGroupRepo(groupId, userId)
+func (u *userDbLogic) UserLeftTheGroupLogic(groupId, userId, msg string) error {
+	err := u.groupRepository.UserLeftGroupRepo(groupId, userId)
 	if err != nil {
 		return err
 	}
@@ -272,19 +250,19 @@ func (group GroupDataLogicModel) UserLeftTheGroupLogic(groupId, userId, msg stri
 		Time:     time.Now().Format("2 Jan 2006 3:04:05 PM"),
 	}
 
-	val := group.groupTb.GetGroupMemberCount(groupId)
+	val := u.groupRepository.GetGroupMemberCount(groupId)
 	valI, err := strconv.Atoi(val)
 	if err != nil {
 		return err
 	}
 
 	valI--
-	err = group.groupTb.UpdateGroupMemberCount(valI, groupId)
+	err = u.groupRepository.UpdateGroupMemberCount(valI, groupId)
 	if err != nil {
 		return err
 	}
 
-	err = group.InsertMessagesToGroup(data)
+	err = u.InsertMessagesToGroup(data)
 	if err != nil {
 		return err
 	}

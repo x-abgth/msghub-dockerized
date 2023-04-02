@@ -58,7 +58,6 @@ func (h *Hub) delete(c *GClient) {
 func (h *Hub) broadcast(m *WSMessage) {
 
 	if clients, ok := h.Clients[m.Payload.Room]; ok {
-		var g logic.GroupDataLogicModel
 
 		if m.Type == "message" {
 			data := models.GroupMessageModel{
@@ -69,7 +68,7 @@ func (h *Hub) broadcast(m *WSMessage) {
 				Status:   logic.IS_SENT,
 				Time:     m.Payload.Time,
 			}
-			err := g.InsertMessagesToGroup(data)
+			err := userLogic.InsertMessagesToGroup(data)
 			if err != nil {
 				log.Fatal("Error happened when inserting elements - ", err)
 			}
@@ -82,7 +81,7 @@ func (h *Hub) broadcast(m *WSMessage) {
 				Status:   logic.IS_SENT,
 				Time:     m.Payload.Time,
 			}
-			err := g.InsertMessagesToGroup(data)
+			err := userLogic.InsertMessagesToGroup(data)
 			if err != nil {
 				log.Fatal("Error happened when inserting elements - ", err)
 			}

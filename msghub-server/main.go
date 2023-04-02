@@ -12,9 +12,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/database"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/handlers/routes"
-	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
-	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/socket"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/template"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/utils"
@@ -44,11 +43,7 @@ func main() {
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal(".env file loading error -- ", err)
-		os.Exit(0)
 	}
-
-	repository.ConnectDb()
-	defer models.SqlDb.Close()
 
 	err = run()
 	if err != nil {
@@ -61,6 +56,13 @@ func main() {
 
 // This function helps to cleanly shut down the server
 func run() error {
+
+	db, err := database.ConnectDb()
+	if err != nil {
+		log.Fatal("error initializing database:", err)
+	}
+	defer db.Close()
+
 	newMux := mux.NewRouter()
 	// serving other files like css, and assets using only http package
 	fileServe := http.FileServer(http.Dir("msghub-client/assets/"))
@@ -72,8 +74,7 @@ func run() error {
 	wsServer := socket.NewWebSocketServer()
 	go wsServer.Run()
 
-	fmt.Println("The routes are about to initialize")
-	routes.InitializeRoutes(newMux, wsServer)
+	routes.InitializeRoutes(db, newMux, wsServer)
 
 	server := &http.Server{Addr: ":9000", Handler: newMux}
 	fmt.Println("Starting server on port http://localhost:9000")
@@ -93,7 +94,7 @@ func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := server.Shutdown(ctx)
+	err = server.Shutdown(ctx)
 	if err != nil {
 		return fmt.Errorf("server failed to shutdown cleanly: %v", err)
 	}

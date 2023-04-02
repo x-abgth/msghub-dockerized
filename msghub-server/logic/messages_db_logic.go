@@ -7,12 +7,7 @@ import (
 	"time"
 
 	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
-	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
 )
-
-type MessageDb struct {
-	UserData repository.Message
-}
 
 // message status constants
 const (
@@ -27,13 +22,7 @@ const (
 	IMAGE = "IMAGE"
 )
 
-// MigrateMessagesDb : Creates message table
-func (m MessageDb) MigrateMessagesDb() error {
-	err := m.UserData.CreateMessageTable()
-	return err
-}
-
-func (m MessageDb) StorePersonalMessagesLogic(message models.MessageModel) {
+func (u *userDbLogic) StorePersonalMessagesLogic(message models.MessageModel) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -41,37 +30,38 @@ func (m MessageDb) StorePersonalMessagesLogic(message models.MessageModel) {
 		}
 	}()
 
-	data := m.UserData
-	data.Content = message.Content
-	data.FromUserId = message.From
-	data.ToUserId = message.To
-	data.SentTime = message.Time
-	data.ContentType = message.ContentType
-	data.Status = message.Status
+	data := models.Message{
+		Content:     message.Content,
+		FromUserId:  message.From,
+		ToUserId:    message.To,
+		SentTime:    message.Time,
+		ContentType: message.ContentType,
+		Status:      message.Status,
+	}
 
-	err := m.UserData.InsertMessageDataRepository(data)
+	err := u.messageRepository.InsertMessageDataRepository(data)
 	if err != nil {
 		panic(err.Error())
 	}
 }
 
-func (m MessageDb) UpdatePmToDelivered(to string) error {
-	return m.UserData.UpdateAllPersonalMessagesToDelivered(to)
+func (u *userDbLogic) UpdatePmToDelivered(to string) error {
+	return u.messageRepository.UpdateAllPersonalMessagesToDelivered(to)
 }
 
-func (m MessageDb) UpdatePmToRead(from, to string) error {
-	return m.UserData.UpdateAllPersonalMessagesToRead(from, to)
+func (u *userDbLogic) UpdatePmToRead(from, to string) error {
+	return u.messageRepository.UpdateAllPersonalMessagesToRead(from, to)
 }
 
-func (m MessageDb) GetMessageDataLogic(target, from string) ([]models.MessageModel, error) {
+func (u *userDbLogic) GetMessageDataLogic(target, from string) ([]models.MessageModel, error) {
 	var this []models.MessageModel
 
-	data1, err := m.UserData.GetAllPersonalMessages(from, target)
+	data1, err := u.messageRepository.GetAllPersonalMessages(from, target)
 	if err != nil {
 		return this, err
 	}
 
-	data2, err := m.UserData.GetAllPersonalMessages(target, from)
+	data2, err := u.messageRepository.GetAllPersonalMessages(target, from)
 	if err != nil {
 		return this, err
 	}

@@ -1,46 +1,32 @@
 package repository
 
 import (
+	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 	"strconv"
 
 	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 )
 
-type Admin struct {
-	AdminId   int    `son:"admin_id"`
-	AdminName string `json:"admin_name"`
-	AdminPass string `json:"admin_pass"`
+type AdminRepository interface {
+	InsertAdminToDb(name, password string) error
+	LoginAdmin(name, password string) (models.Admin, error)
+	GetAdminsData(name string) ([]models.AdminModel, error)
+	InsertAdminMessageDataRepository(message models.Message) error
+	GetAllUsersDataForAdmin() ([]models.UserModel, error)
+	GetGroupsData() ([]models.GroupModel, error)
+	GetDeletedUserData() ([]models.UserModel, error)
+	AdminBlockThisUserRepo(userID, duration string) error
+	AdminBlockThisGroupRepo(groupID, duration string) error
 }
 
-func (admin Admin) CreateAdminTable() error {
-	_, err := models.SqlDb.Exec(`CREATE TABLE IF NOT EXISTS admins(admin_id BIGSERIAL PRIMARY KEY NOT NULL, admin_name TEXT DEFAULT 'root' NOT NULL, admin_pass TEXT DEFAULT 'toor' NOT NULL);`)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Admin table created successfully!")
-
-	var count int
-	err = models.SqlDb.QueryRow("SELECT COUNT(*) FROM admins;").Scan(&count)
-	if err != nil {
-		return err
-	}
-
-	if count == 0 {
-		_, err := models.SqlDb.Exec(`INSERT INTO admins(admin_name, admin_pass) VALUES(DEFAULT, DEFAULT);`)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+func NewAdminRepository(db *sql.DB) AdminRepository {
+	return &repository{db}
 }
 
-func (admin Admin) InsertAdminToDb(name, pass string) error {
-	_, err2 := models.SqlDb.Exec(`INSERT INTO admins(admin_name, admin_pass) 
+func (r *repository) InsertAdminToDb(name, pass string) error {
+	_, err2 := r.db.Exec(`INSERT INTO admins(admin_name, admin_pass) 
 VALUES($1, $2);`, name, pass)
 	if err2 != nil {
 		log.Println(err2)
@@ -50,9 +36,9 @@ VALUES($1, $2);`, name, pass)
 	return nil
 }
 
-func (admin Admin) LoginAdmin(uname, pass string) (Admin, error) {
+func (r *repository) LoginAdmin(uname, pass string) (models.Admin, error) {
 	var name, password string
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT 
     	admin_name,
     	admin_pass
@@ -60,7 +46,7 @@ func (admin Admin) LoginAdmin(uname, pass string) (Admin, error) {
 	WHERE admin_name = $1;`, uname)
 
 	if err != nil {
-		return Admin{}, errors.New("an unknown error occurred, please try again")
+		return models.Admin{}, errors.New("an unknown error occurred, please try again")
 	}
 
 	defer rows.Close()
@@ -69,11 +55,11 @@ func (admin Admin) LoginAdmin(uname, pass string) (Admin, error) {
 			&name,
 			&password,
 		); err1 != nil {
-			return Admin{}, err1
+			return models.Admin{}, err1
 		}
 	}
 
-	data := Admin{
+	data := models.Admin{
 		AdminName: name,
 		AdminPass: password,
 	}
@@ -81,12 +67,12 @@ func (admin Admin) LoginAdmin(uname, pass string) (Admin, error) {
 	return data, nil
 }
 
-func (admin Admin) GetAdminsData(uname string) ([]models.AdminModel, error) {
+func (r *repository) GetAdminsData(uname string) ([]models.AdminModel, error) {
 	var (
 		adminID, adminName string
 		res                []models.AdminModel
 	)
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT 
 		admin_id, 
     	admin_name
@@ -116,16 +102,14 @@ func (admin Admin) GetAdminsData(uname string) ([]models.AdminModel, error) {
 	return res, nil
 }
 
-func (m Message) InsertAdminMessageDataRepository(data Message) error {
+func (r *repository) InsertAdminMessageDataRepository(data models.Message) error {
 
 	var (
 		msgID int
 		res   []int
 	)
 
-	fmt.Println("In repo = ", data)
-
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT 
     	msg_id
 	FROM admin_messages
@@ -146,7 +130,7 @@ func (m Message) InsertAdminMessageDataRepository(data Message) error {
 	}
 
 	for i := range res {
-		_, err1 := models.SqlDb.Exec(`UPDATE messages
+		_, err1 := r.db.Exec(`UPDATE messages
 		SET is_recent = false
 		WHERE msg_id = $1`,
 			res[i])
@@ -156,7 +140,7 @@ func (m Message) InsertAdminMessageDataRepository(data Message) error {
 		}
 	}
 
-	_, err2 := models.SqlDb.Exec(`INSERT INTO messages(from_user_id, to_user_id, content, sent_time, status, is_recent) 
+	_, err2 := r.db.Exec(`INSERT INTO messages(from_user_id, to_user_id, content, sent_time, status, is_recent) 
 VALUES($1, $2, $3, $4, $5, $6);`,
 		data.FromUserId, data.ToUserId, data.Content, data.SentTime, data.Status, true)
 	if err2 != nil {
@@ -167,14 +151,14 @@ VALUES($1, $2, $3, $4, $5, $6);`,
 	return nil
 }
 
-func (admin Admin) GetAllUsersData() ([]models.UserModel, error) {
+func (r *repository) GetAllUsersDataForAdmin() ([]models.UserModel, error) {
 	var (
 		phone, name, about string
 		avatar             *string
 		isBlocked          bool
 		res                []models.UserModel
 	)
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT user_ph_no, user_name, user_avatar, user_about, is_blocked FROM users;`)
 	if err != nil {
 		return res, errors.New("an unknown error occurred, please try again")
@@ -210,7 +194,7 @@ func (admin Admin) GetAllUsersData() ([]models.UserModel, error) {
 	return res, nil
 }
 
-func (admin Admin) GetGroupsData() ([]models.GroupModel, error) {
+func (r *repository) GetGroupsData() ([]models.GroupModel, error) {
 	var (
 		id, name, about, date, members, creator string
 		avatar                                  *string
@@ -218,7 +202,7 @@ func (admin Admin) GetGroupsData() ([]models.GroupModel, error) {
 		isBanned bool
 		res      []models.GroupModel
 	)
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT group_id, group_name, group_avatar, group_about, group_creator, group_created_date, group_total_members, is_banned FROM groups;`)
 	if err != nil {
 		return res, errors.New("an unknown error occurred, please try again")
@@ -265,7 +249,7 @@ func (admin Admin) GetGroupsData() ([]models.GroupModel, error) {
 	return res, nil
 }
 
-func (admin Admin) GetDeletedUserData() ([]models.UserModel, error) {
+func (r *repository) GetDeletedUserData() ([]models.UserModel, error) {
 	var (
 		id, name, about, deleteTime string
 		isBlocked                   bool
@@ -273,7 +257,7 @@ func (admin Admin) GetDeletedUserData() ([]models.UserModel, error) {
 
 		res []models.UserModel
 	)
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT user_ph_no, user_avatar, user_about, is_blocked, delete_time FROM deleted_users;`)
 	if err != nil {
 		return nil, errors.New("an unknown error occurred, please try again")
@@ -311,8 +295,8 @@ func (admin Admin) GetDeletedUserData() ([]models.UserModel, error) {
 	return res, nil
 }
 
-func (admin Admin) AdminBlockThisUserRepo(id, condition string) error {
-	_, err1 := models.SqlDb.Exec(`UPDATE users SET is_blocked = true, blocked_duration = $1 WHERE user_ph_no = $2 AND is_blocked = false;`, condition, id)
+func (r *repository) AdminBlockThisUserRepo(id, condition string) error {
+	_, err1 := r.db.Exec(`UPDATE users SET is_blocked = true, blocked_duration = $1 WHERE user_ph_no = $2 AND is_blocked = false;`, condition, id)
 	if err1 != nil {
 		log.Println(err1)
 		return errors.New("sorry, An unknown error occurred. Please try again")
@@ -321,8 +305,8 @@ func (admin Admin) AdminBlockThisUserRepo(id, condition string) error {
 	return nil
 }
 
-func (admin Admin) AdminBlockThisGroupRepo(id, condition string) error {
-	_, err1 := models.SqlDb.Exec(`UPDATE groups SET is_banned = true, banned_time = $1 WHERE group_id = $2 AND is_banned = false;`, condition, id)
+func (r *repository) AdminBlockThisGroupRepo(id, condition string) error {
+	_, err1 := r.db.Exec(`UPDATE groups SET is_banned = true, banned_time = $1 WHERE group_id = $2 AND is_banned = false;`, condition, id)
 	if err1 != nil {
 		log.Println(err1)
 		return errors.New("sorry, An unknown error occurred. Please try again")

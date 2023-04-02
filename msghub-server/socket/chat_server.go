@@ -28,7 +28,6 @@ func NewWebSocketServer() *WsServer {
 		unregister: make(chan *Client),
 		broadcast:  make(chan *WSMessage),
 	}
-
 }
 
 // Run our websocket server, accepting various requests
@@ -61,11 +60,6 @@ func (server *WsServer) unregisterClient(client *Client) {
 	delete(server.clients, client)
 }
 
-// table1 - id, name, email
-// table2 - id, batch, phone
-
-// SELECT table1.id, table1.name, table2.phone FROM INNER JOIN table1.id ON table2.id;
-
 // If the client send a message, it broadcasts to all the other users
 func (server *WsServer) broadcastToClients(m *WSMessage) {
 	defer func() {
@@ -75,8 +69,6 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 			os.Exit(1)
 		}
 	}()
-
-	var msgModel logic.MessageDb
 
 	user := server.findClientByID(m.ClientID)
 	target := server.findClientByID(m.TargetID)
@@ -93,7 +85,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 						Status:      logic.IS_READ,
 						Time:        m.Payload.Time,
 					}
-					msgModel.StorePersonalMessagesLogic(data)
+					userLogic.StorePersonalMessagesLogic(data)
 				} else if m.Type == "image" {
 					data := models.MessageModel{
 						To:          m.Payload.Room,
@@ -103,7 +95,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 						Status:      logic.IS_READ,
 						Time:        m.Payload.Time,
 					}
-					msgModel.StorePersonalMessagesLogic(data)
+					userLogic.StorePersonalMessagesLogic(data)
 				}
 				m.Payload.Status = logic.IS_READ
 			} else {
@@ -116,7 +108,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 						Status:      logic.IS_DELIVERED,
 						Time:        m.Payload.Time,
 					}
-					msgModel.StorePersonalMessagesLogic(data)
+					userLogic.StorePersonalMessagesLogic(data)
 				} else if m.Type == "image" {
 					data := models.MessageModel{
 						To:          m.Payload.Room,
@@ -126,7 +118,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 						Status:      logic.IS_DELIVERED,
 						Time:        m.Payload.Time,
 					}
-					msgModel.StorePersonalMessagesLogic(data)
+					userLogic.StorePersonalMessagesLogic(data)
 				}
 				m.Payload.Status = logic.IS_DELIVERED
 			}
@@ -142,7 +134,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 					Status:      logic.IS_NOT_SENT,
 					Time:        m.Payload.Time,
 				}
-				msgModel.StorePersonalMessagesLogic(data)
+				userLogic.StorePersonalMessagesLogic(data)
 			} else if m.Type == "image" {
 				data := models.MessageModel{
 					To:          m.Payload.Room,
@@ -152,7 +144,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 					Status:      logic.IS_NOT_SENT,
 					Time:        m.Payload.Time,
 				}
-				msgModel.StorePersonalMessagesLogic(data)
+				userLogic.StorePersonalMessagesLogic(data)
 			}
 			user.send <- m
 		}
@@ -167,7 +159,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 					Status:      logic.IS_SENT,
 					Time:        m.Payload.Time,
 				}
-				msgModel.StorePersonalMessagesLogic(data)
+				userLogic.StorePersonalMessagesLogic(data)
 			} else if m.Type == "image" {
 				data := models.MessageModel{
 					To:          m.Payload.Room,
@@ -177,7 +169,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 					Status:      logic.IS_SENT,
 					Time:        m.Payload.Time,
 				}
-				msgModel.StorePersonalMessagesLogic(data)
+				userLogic.StorePersonalMessagesLogic(data)
 			}
 			m.Payload.Status = logic.IS_SENT
 			user.send <- m
@@ -191,7 +183,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 					Status:      logic.IS_NOT_SENT,
 					Time:        m.Payload.Time,
 				}
-				msgModel.StorePersonalMessagesLogic(data)
+				userLogic.StorePersonalMessagesLogic(data)
 			} else if m.Type == "image" {
 				data := models.MessageModel{
 					To:          m.Payload.Room,
@@ -201,7 +193,7 @@ func (server *WsServer) broadcastToClients(m *WSMessage) {
 					Status:      logic.IS_NOT_SENT,
 					Time:        m.Payload.Time,
 				}
-				msgModel.StorePersonalMessagesLogic(data)
+				userLogic.StorePersonalMessagesLogic(data)
 			}
 			user.send <- m
 		}

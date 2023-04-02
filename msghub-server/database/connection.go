@@ -1,12 +1,9 @@
-package repository
+package database
 
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
-
-	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 
 	_ "github.com/lib/pq"
 )
@@ -20,7 +17,7 @@ type config struct {
 	sslMode string
 }
 
-func ConnectDb() {
+func ConnectDb() (*sql.DB, error) {
 
 	// loads env file
 	configure := &config{
@@ -40,11 +37,10 @@ func ConnectDb() {
 		configure.dbName,
 		configure.sslMode)
 
-	fmt.Println("--- DATABASE INITIALIZED ON HOST = " + configure.host + " ---")
-
-	var err error
-	models.SqlDb, err = sql.Open("postgres", psql)
+	db, err := sql.Open("postgres", psql)
 	if err != nil {
-		log.Fatal("Error connecting to repository - ", err.Error())
+		return nil, err
 	}
+
+	return db, nil
 }

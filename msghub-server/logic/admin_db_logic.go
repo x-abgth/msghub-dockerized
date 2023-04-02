@@ -7,24 +7,37 @@ import (
 	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
 )
 
-type AdminDb struct {
-	repo repository.Admin
-	user repository.User
+type AdminLogic interface {
+	InsertAdminLogic(username, password string) error
+	AdminLoginLogic(username, password string) error
+	GetAllAdminsData(username string) ([]models.AdminModel, error)
+	GetUsersData() ([]models.UserModel, error)
+	GetDelUsersData() ([]models.UserModel, error)
+	GetGroupsData() ([]models.GroupModel, error)
+	BlockThisUserLogic(userID, duration string) error
+	UnblockUserLogic(userID string) error
+	BlockThisGroupLogic(groupID, duration string) error
+	AdminUnBlockGroupHandler(groupID string) error
+	AdminStorePersonalMessages(message models.MessageModel) error
 }
 
-// MigrateAdminDb :  Creates table for admin according the struct Admin
-func (admin AdminDb) MigrateAdminDb() error {
-	err := admin.repo.CreateAdminTable()
+type adminDb struct {
+	adminRepository   repository.AdminRepository
+	userRepository    repository.UserRepository
+	messageRepository repository.MessageRepository
+}
+
+func NewAdminLogic(adminRepo repository.AdminRepository, userRepo repository.UserRepository, messageRepo repository.MessageRepository) AdminLogic {
+	return &adminDb{adminRepository: adminRepo, userRepository: userRepo, messageRepository: messageRepo}
+}
+
+func (a *adminDb) InsertAdminLogic(username, password string) error {
+	err := a.adminRepository.InsertAdminToDb(username, password)
 	return err
 }
 
-func (admin AdminDb) InsertAdminLogic(username, password string) error {
-	err := admin.repo.InsertAdminToDb(username, password)
-	return err
-}
-
-func (admin AdminDb) AdminLoginLogic(username, password string) error {
-	data, err := admin.repo.LoginAdmin(username, password)
+func (a *adminDb) AdminLoginLogic(username, password string) error {
+	data, err := a.adminRepository.LoginAdmin(username, password)
 	if err != nil {
 		return err
 	}
@@ -38,50 +51,68 @@ func (admin AdminDb) AdminLoginLogic(username, password string) error {
 	return errors.New("you have entered wrong password, please try again")
 }
 
-func (admin AdminDb) GetAllAdminsData(name string) ([]models.AdminModel, error) {
-	data, err := admin.repo.GetAdminsData(name)
+func (a *adminDb) GetAllAdminsData(name string) ([]models.AdminModel, error) {
+	data, err := a.adminRepository.GetAdminsData(name)
 
 	return data, err
 }
 
-func (admin AdminDb) GetUsersData() ([]models.UserModel, error) {
-	data, err := admin.repo.GetAllUsersData()
+func (a *adminDb) GetUsersData() ([]models.UserModel, error) {
+	data, err := a.adminRepository.GetAllUsersDataForAdmin()
 
 	return data, err
 }
 
-func (admin AdminDb) GetDelUsersData() ([]models.UserModel, error) {
-	data, err := admin.repo.GetDeletedUserData()
+func (a *adminDb) GetDelUsersData() ([]models.UserModel, error) {
+	data, err := a.adminRepository.GetDeletedUserData()
 
 	return data, err
 }
 
-func (admin AdminDb) GetGroupsData() ([]models.GroupModel, error) {
-	data, err := admin.repo.GetGroupsData()
+func (a *adminDb) GetGroupsData() ([]models.GroupModel, error) {
+	data, err := a.adminRepository.GetGroupsData()
 
 	return data, err
 }
 
-func (admin AdminDb) BlockThisUserLogic(id, condition string) error {
-	err := admin.repo.AdminBlockThisUserRepo(id, condition)
+func (a *adminDb) BlockThisUserLogic(id, condition string) error {
+	err := a.adminRepository.AdminBlockThisUserRepo(id, condition)
 
 	return err
 }
 
-func (admin AdminDb) UnblockUserLogic(id string) error {
-	err := admin.user.UndoAdminBlockRepo(id)
+func (a *adminDb) UnblockUserLogic(id string) error {
+	err := a.userRepository.UndoAdminBlockRepo(id)
 
 	return err
 }
 
-func (admin AdminDb) BlockThisGroupLogic(id, condition string) error {
-	err := admin.repo.AdminBlockThisGroupRepo(id, condition)
+func (a *adminDb) BlockThisGroupLogic(id, condition string) error {
+	err := a.adminRepository.AdminBlockThisGroupRepo(id, condition)
 
 	return err
 }
 
-func (admin AdminDb) AdminUnBlockGroupHandler(id string) error {
-	err := admin.user.UnblockGroupRepo(id)
+func (a *adminDb) AdminUnBlockGroupHandler(id string) error {
+	err := a.userRepository.UnblockGroupRepo(id)
 
 	return err
+}
+
+func (a *adminDb) AdminStorePersonalMessages(message models.MessageModel) error {
+	data := models.Message{
+		Content:     message.Content,
+		FromUserId:  message.From,
+		ToUserId:    message.To,
+		SentTime:    message.Time,
+		ContentType: message.ContentType,
+		Status:      message.Status,
+	}
+
+	err := a.messageRepository.InsertMessageDataRepository(data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

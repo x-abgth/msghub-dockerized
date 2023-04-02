@@ -16,31 +16,33 @@ import (
 	"github.com/x-abgth/msghub-dockerized/msghub-server/utils"
 )
 
-type AdminHandlerStruct struct {
-	logics    logic.AdminDb
-	msgLogics logic.MessageDb
-	err       error
+type AdminHandler struct {
+	migrationService logic.MigrationLogic
+	adminService     logic.AdminLogic
 }
 
-func (admin *AdminHandlerStruct) AdminLoginPageHandler(w http.ResponseWriter, r *http.Request) {
+func NewAdminHandler(migrationServ logic.MigrationLogic, adminServ logic.AdminLogic) *AdminHandler {
+	return &AdminHandler{migrationService: migrationServ, adminService: adminServ}
+}
 
-	err1 := admin.logics.MigrateAdminDb()
+func (a *AdminHandler) AdminLoginPageHandler(w http.ResponseWriter, r *http.Request) {
+
+	err1 := a.migrationService.MigrateAdminTable()
 	if err1 != nil {
 		log.Println("Error creating admin table : ", err1.Error())
 		os.Exit(1)
 	}
 
-	c, err1 := r.Cookie("adminToken")
+	c, err1 := r.Cookie("admin_token")
 	if err1 != nil {
 		type adminLoginData struct {
 			ErrStr string
 		}
 
 		var data adminLoginData
-		if admin.err != nil {
-			data = adminLoginData{
-				ErrStr: admin.err.Error(),
-			}
+		cErr, _ := r.Cookie("admin_error")
+		data = adminLoginData{
+			ErrStr: cErr.Value,
 		}
 
 		err := template.Tpl.ExecuteTemplate(w, "admin_login.html", data)
@@ -56,21 +58,18 @@ func (admin *AdminHandlerStruct) AdminLoginPageHandler(w http.ResponseWriter, r 
 
 }
 
-func (admin *AdminHandlerStruct) AdminAuthenticateHandler(w http.ResponseWriter, r *http.Request) {
+func (a *AdminHandler) AdminAuthenticateHandler(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseForm()
 
 	name := r.PostFormValue("signinName")
 	pass := r.PostFormValue("signinPass")
 
-	alert := admin.logics.AdminLoginLogic(name, pass)
-	admin.err = alert
-
-	if alert == nil {
-		admin.err = nil
+	err := a.adminService.AdminLoginLogic(name, pass)
+	if err == nil {
 
 		// remove user cookie
-		userCookie := &http.Cookie{Name: "userToken", MaxAge: -1, HttpOnly: true, Path: "/"}
+		userCookie := &http.Cookie{Name: "user_token", MaxAge: -1, HttpOnly: true, Path: "/"}
 		http.SetCookie(w, userCookie)
 
 		// set admin cookie
@@ -82,16 +81,23 @@ func (admin *AdminHandlerStruct) AdminAuthenticateHandler(w http.ResponseWriter,
 		token := jwtPkg.SignAdminJwtToken(claims)
 		//
 		expire := time.Now().AddDate(0, 0, 1)
-		adminCookie := &http.Cookie{Name: "adminToken", Value: token, Expires: expire, HttpOnly: true, Path: "/admin/"}
+		adminCookie := &http.Cookie{Name: "admin_token", Value: token, Expires: expire, HttpOnly: true, Path: "/admin/"}
 		http.SetCookie(w, adminCookie)
 
 		http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
 	} else {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "admin_error",
+			Value:    err.Error(),
+			MaxAge:   60, // 60 secs
+			HttpOnly: true,
+			Path:     "/",
+		})
 		http.Redirect(w, r, "/admin/login-page", http.StatusSeeOther)
 	}
 }
 
-func (admin *AdminHandlerStruct) AdminDashboardHandler(w http.ResponseWriter, r *http.Request) {
+func (a *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if e := recover(); e != nil {
@@ -101,7 +107,7 @@ func (admin *AdminHandlerStruct) AdminDashboardHandler(w http.ResponseWriter, r 
 	}()
 
 	// Get admin name
-	cookie, err1 := r.Cookie("adminToken")
+	cookie, err1 := r.Cookie("admin_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -112,25 +118,25 @@ func (admin *AdminHandlerStruct) AdminDashboardHandler(w http.ResponseWriter, r 
 	claim := jwtPkg.GetValueFromAdminJwt(cookie)
 
 	// Get admin table content
-	a, err := admin.logics.GetAllAdminsData(claim.AdminName)
+	a1, err := a.adminService.GetAllAdminsData(claim.AdminName)
 	if err != nil {
 		panic(err.Error())
 	}
 
 	// Get Users table content
-	b, err := admin.logics.GetUsersData()
+	b1, err := a.adminService.GetUsersData()
 	if err != nil {
 		panic(err)
 	}
 
 	// Get Deleted Users table content
-	c, err := admin.logics.GetDelUsersData()
+	c1, err := a.adminService.GetDelUsersData()
 	if err != nil {
 		panic(err)
 	}
 
 	// Get Groups table content
-	d, err := admin.logics.GetGroupsData()
+	d1, err := a.adminService.GetGroupsData()
 	if err != nil {
 		panic(err)
 	}
@@ -138,10 +144,10 @@ func (admin *AdminHandlerStruct) AdminDashboardHandler(w http.ResponseWriter, r 
 	// Set data
 	data := models.AdminDashboardModel{
 		AdminName:             claim.AdminName,
-		AdminTbContent:        a,
-		UsersTbContent:        b,
-		DeletedUsersTbContent: c,
-		GroupTbContent:        d,
+		AdminTbContent:        a1,
+		UsersTbContent:        b1,
+		DeletedUsersTbContent: c1,
+		GroupTbContent:        d1,
 	}
 
 	err = template.Tpl.ExecuteTemplate(w, "admin_dashboard.html", data)
@@ -150,7 +156,7 @@ func (admin *AdminHandlerStruct) AdminDashboardHandler(w http.ResponseWriter, r 
 	}
 }
 
-func (admin *AdminHandlerStruct) AdminBlocksUserHandler(w http.ResponseWriter, r *http.Request) {
+func (a *AdminHandler) AdminBlocksUserHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	uid := vars["id"]
 	condition := vars["condition"]
@@ -182,19 +188,19 @@ func (admin *AdminHandlerStruct) AdminBlocksUserHandler(w http.ResponseWriter, r
 	}
 
 	// change block value to true and update block duration
-	err := admin.logics.BlockThisUserLogic(uid, t)
+	err := a.adminService.BlockThisUserLogic(uid, t)
 	if err != nil {
 		panic(err)
 	}
 
 	// clear cookie and check user block while login
-	userCookie := &http.Cookie{Name: "userToken", MaxAge: -1, HttpOnly: true, Path: "/"}
+	userCookie := &http.Cookie{Name: "user_token", MaxAge: -1, HttpOnly: true, Path: "/"}
 	http.SetCookie(w, userCookie)
 
 	http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
 }
 
-func (admin *AdminHandlerStruct) AdminUnBlocksUserHandler(w http.ResponseWriter, r *http.Request) {
+func (a *AdminHandler) AdminUnBlocksUserHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	uid := vars["id"]
 
@@ -205,7 +211,7 @@ func (admin *AdminHandlerStruct) AdminUnBlocksUserHandler(w http.ResponseWriter,
 		}
 	}()
 
-	err := admin.logics.UnblockUserLogic(uid)
+	err := a.adminService.UnblockUserLogic(uid)
 	if err != nil {
 		panic(err)
 	}
@@ -213,7 +219,7 @@ func (admin *AdminHandlerStruct) AdminUnBlocksUserHandler(w http.ResponseWriter,
 	http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
 }
 
-func (admin *AdminHandlerStruct) AdminBlocksGroupHandler(w http.ResponseWriter, r *http.Request) {
+func (a *AdminHandler) AdminBlocksGroupHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gid := vars["id"]
 	condition := vars["condition"]
@@ -243,7 +249,7 @@ func (admin *AdminHandlerStruct) AdminBlocksGroupHandler(w http.ResponseWriter, 
 		panic("wrong choice")
 	}
 
-	err := admin.logics.BlockThisGroupLogic(gid, t)
+	err := a.adminService.BlockThisGroupLogic(gid, t)
 	if err != nil {
 		panic(err)
 	}
@@ -251,7 +257,7 @@ func (admin *AdminHandlerStruct) AdminBlocksGroupHandler(w http.ResponseWriter, 
 	http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
 }
 
-func (admin *AdminHandlerStruct) AdminUnBlockGroupHandler(w http.ResponseWriter, r *http.Request) {
+func (a *AdminHandler) AdminUnBlockGroupHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -262,7 +268,7 @@ func (admin *AdminHandlerStruct) AdminUnBlockGroupHandler(w http.ResponseWriter,
 		}
 	}()
 
-	err := admin.logics.AdminUnBlockGroupHandler(id)
+	err := a.adminService.AdminUnBlockGroupHandler(id)
 	if err != nil {
 		panic(err)
 	}
@@ -270,7 +276,7 @@ func (admin *AdminHandlerStruct) AdminUnBlockGroupHandler(w http.ResponseWriter,
 	http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
 }
 
-func (admin *AdminHandlerStruct) AdminBroadcastHandler(w http.ResponseWriter, r *http.Request) {
+func (a *AdminHandler) AdminBroadcastHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	msg := r.PostFormValue("message")
@@ -284,12 +290,12 @@ func (admin *AdminHandlerStruct) AdminBroadcastHandler(w http.ResponseWriter, r 
 		ContentType: logic.TEXT,
 	}
 
-	admin.msgLogics.StorePersonalMessagesLogic(data)
+	a.adminService.AdminStorePersonalMessages(data)
 
 	http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
 }
 
-func (admin *AdminHandlerStruct) NewAdminPageHandler(w http.ResponseWriter, r *http.Request) {
+func (a *AdminHandler) NewAdminPageHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -302,7 +308,7 @@ func (admin *AdminHandlerStruct) NewAdminPageHandler(w http.ResponseWriter, r *h
 	}
 }
 
-func (admin *AdminHandlerStruct) NewAdminHandler(w http.ResponseWriter, r *http.Request) {
+func (a *AdminHandler) NewAdminHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -324,7 +330,7 @@ func (admin *AdminHandlerStruct) NewAdminHandler(w http.ResponseWriter, r *http.
 	}
 
 	// store password
-	err = admin.logics.InsertAdminLogic(name, encryptedFormPassword)
+	err = a.adminService.InsertAdminLogic(name, encryptedFormPassword)
 	if err != nil {
 		panic(err)
 	}
@@ -332,8 +338,8 @@ func (admin *AdminHandlerStruct) NewAdminHandler(w http.ResponseWriter, r *http.
 	http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
 }
 
-func (admin *AdminHandlerStruct) AdminLogoutHandler(w http.ResponseWriter, r *http.Request) {
-	adminCookie := &http.Cookie{Name: "adminToken", MaxAge: -1, HttpOnly: true, Path: "/admin/"}
+func (a *AdminHandler) AdminLogoutHandler(w http.ResponseWriter, r *http.Request) {
+	adminCookie := &http.Cookie{Name: "admin_token", MaxAge: -1, HttpOnly: true, Path: "/admin/"}
 	http.SetCookie(w, adminCookie)
 
 	http.Redirect(w, r, "/admin/login-page", http.StatusFound)

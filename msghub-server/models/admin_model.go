@@ -12,3 +12,9 @@ type AdminDashboardModel struct {
 	AdminTbContent        []AdminModel
 	GroupTbContent        []GroupModel
 }
+
+type Admin struct {
+	AdminId   int    `son:"admin_id"`
+	AdminName string `json:"admin_name"`
+	AdminPass string `json:"admin_pass"`
+}

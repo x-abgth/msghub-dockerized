@@ -21,50 +21,58 @@ import (
 )
 
 // This might helps to pass error strings from one route to other
-type InformationHelper struct {
-	userRepo     logic.UserDb
-	messagesRepo logic.MessageDb
-	groupRepo    logic.GroupDataLogicModel
-	errorStr     string
+type UserHandler struct {
+	migrationService logic.MigrationLogic
+	userService      logic.UserLogic
 }
 
-func (info *InformationHelper) UserLoginHandler(w http.ResponseWriter, r *http.Request) {
-	err := info.userRepo.MigrateUserDb()
+func NewUserHandler(migrationServ logic.MigrationLogic, userServ logic.UserLogic) *UserHandler {
+	return &UserHandler{migrationService: migrationServ, userService: userServ}
+}
+
+func (u *UserHandler) UserLoginHandler(w http.ResponseWriter, r *http.Request) {
+	err := u.migrationService.MigrateUserTable()
 	if err != nil {
 		log.Fatal("Error creating user table : ", err.Error())
 	}
 
-	err = info.userRepo.MigrateDeletedUserDb()
+	err = u.migrationService.MigrateDeletedUserTable()
 	if err != nil {
 		log.Fatal("Error creating deleted user table : ", err.Error())
 	}
 
+	// Setting jwt token
 	claims := &jwtPkg.UserJwtClaim{
 		IsAuthenticated: false,
 	}
-
 	token := jwtPkg.SignJwtToken(claims)
-
 	http.SetCookie(w, &http.Cookie{
-		Name:     "userToken",
+		Name:     "user_token",
 		Value:    token,
 		MaxAge:   -1,
 		HttpOnly: true,
 		Path:     "/",
 	})
 
+	// Checking login error message
+	errCookie, err := r.Cookie("login_error")
+	if err != nil {
+		errCookie = &http.Cookie{Name: "login_error", Value: ""}
+	}
+
 	alm := struct {
 		ErrorStr string
 	}{
-		ErrorStr: info.errorStr,
+		ErrorStr: errCookie.Value,
 	}
-	err1 := template.Tpl.ExecuteTemplate(w, "index.html", alm)
-	if err1 != nil {
-		fmt.Println("Error : ", err1.Error())
+
+	err = template.Tpl.ExecuteTemplate(w, "index.html", alm)
+	if err != nil {
+		fmt.Println("Error : ", err.Error())
 	}
 }
 
-func (info *InformationHelper) UserLoginCredentialsHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserLoginCredentialsHandler(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if e := recover(); e != nil {
@@ -80,31 +88,35 @@ func (info *InformationHelper) UserLoginCredentialsHandler(w http.ResponseWriter
 
 	handleExceptions(w, r, "/")
 
-	isValid, alert := info.userRepo.UserLoginLogic(ph, pass)
-
-	if isValid {
-		data := models.ReturnUserModel()
+	user, err := u.userService.UserLoginLogic(ph, pass)
+	if err == nil {
 		// assigning JWT tokens
 		claims := &jwtPkg.UserJwtClaim{
-			User:            *data,
+			User:            user,
 			IsAuthenticated: true,
 		}
 
 		token := jwtPkg.SignJwtToken(claims)
 		//
 		expire := time.Now().AddDate(0, 0, 1)
-		cookie := &http.Cookie{Name: "userToken", Value: token, Expires: expire, HttpOnly: true, Path: "/"}
+		cookie := &http.Cookie{Name: "user_token", Value: token, Expires: expire, HttpOnly: true, Path: "/"}
 		http.SetCookie(w, cookie)
 
 		http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 	} else {
-		info.errorStr = alert.Error()
+		http.SetCookie(w, &http.Cookie{
+			Name:     "login_error",
+			Value:    err.Error(),
+			MaxAge:   60, // 60 secs
+			HttpOnly: true,
+			Path:     "/",
+		})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 
 // This handler displays the page to enter the phone number
-func (info *InformationHelper) UserLoginWithOtpPhonePageHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserLoginWithOtpPageHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -112,59 +124,140 @@ func (info *InformationHelper) UserLoginWithOtpPhonePageHandler(w http.ResponseW
 		}
 	}()
 
-	data := models.ReturnOtpErrorModel()
-	err := template.Tpl.ExecuteTemplate(w, "login_with_otp.html", data)
+	loginErr, err := r.Cookie("login_error")
+	if err != nil {
+		loginErr = &http.Cookie{Name: "login_error", Value: ""}
+	}
+
+	data := struct {
+		ErrorStr string
+	}{
+		ErrorStr: loginErr.Value,
+	}
+	err = template.Tpl.ExecuteTemplate(w, "login_with_otp.html", data)
 	if err != nil {
 		panic(err)
 	}
 }
 
 // This handler process the phone number given and check weather is valid or not
-func (info *InformationHelper) UserLoginOtpPhoneValidateHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserVerifyLoginPhoneHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 		}
 	}()
+
+	r.ParseForm()
+	ph := r.PostFormValue("phone")
+
+	var result bool
+	if len(ph) == 10 {
+		err := u.userService.UserDuplicationStatsAndSendOtpLogic(ph)
+		if err != nil {
+			log.Println(err)
+			result = false
+		} else {
+			result = true
+		}
+	}
+
+	// Create a JSON response with the result
+	response := struct {
+		Result bool `json:"result"`
+	}{
+		Result: result,
+	}
+
+	// Encode the response as JSON and write it to the response writer
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (u *UserHandler) UserVerifyLoginOtpHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
+	otp := r.PostFormValue("loginOtp")
+	ph := r.PostFormValue("phone")
+
+	err := u.userService.UserValidateOtpLogic(ph, otp)
+
+	if err == nil {
+		userData := models.UserModel{UserPhone: ph}
+		claims := &jwtPkg.UserJwtClaim{
+			User:            userData,
+			IsAuthenticated: true,
+		}
+
+		token := jwtPkg.SignJwtToken(claims)
+		//
+		expire := time.Now().AddDate(0, 0, 1)
+		cookie := &http.Cookie{Name: "user_token", Value: token, Expires: expire, HttpOnly: true, Path: "/"}
+		http.SetCookie(w, cookie)
+
+		http.Redirect(w, r, "/user/dashboard", http.StatusFound)
+	} else {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "login_error",
+			Value:    "Entered OTP is invalid.",
+			MaxAge:   60, // 60 secs
+			HttpOnly: true,
+			Path:     "/login/phone",
+		})
+
+		http.Redirect(w, r, "/login/phone/validation", http.StatusFound)
+	}
+}
+
+func (u *UserHandler) UserVerifyRegisterPhoneHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	ph := r.PostFormValue("phone")
 
-	if user := info.userRepo.UserDuplicationStatsAndSendOtpLogic(ph); user {
-		userData := models.UserModel{UserPhone: ph}
-		claims := &jwtPkg.UserJwtClaim{
-			User:            userData,
-			IsAuthenticated: false,
-		}
-
-		token := jwtPkg.SignJwtToken(claims)
-		//
-		expire := time.Now().AddDate(0, 0, 1)
-		cookie := &http.Cookie{Name: "userToken", Value: token, Expires: expire, HttpOnly: true, Path: "/"}
-		http.SetCookie(w, cookie)
-		http.Redirect(w, r, "/login/otp/getotp", http.StatusFound)
+	var result bool
+	// This only sends the otp for registration, won't update anything on db
+	err := u.userService.UserRegisterPhoneValidationLogic(ph)
+	if err != nil {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "login_error",
+			Value:    err.Error(),
+			MaxAge:   60, // 60 secs
+			HttpOnly: true,
+			Path:     "/",
+		})
+		result = false
 	} else {
-		http.Redirect(w, r, "/login/otp/getphone", http.StatusSeeOther)
+		result = true
 	}
+
+	result = true
+
+	// Create a JSON response with the result
+	response := struct {
+		Result bool `json:"result"`
+	}{
+		Result: result,
+	}
+
+	// Encode the response as JSON and write it to the response writer
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
-func (info *InformationHelper) UserOtpPageHandler(w http.ResponseWriter, r *http.Request) {
-	data := models.ReturnOtpErrorModel()
-	err := template.Tpl.ExecuteTemplate(w, "user_otp_validation.html", data)
-	utils.PrintError(err, "")
-}
-
-func (info *InformationHelper) UserVerifyLoginOtpHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserVerifyRegisterOtpHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
-	otp := r.PostFormValue("loginOtp")
-	ph := r.PostFormValue("loginPhone")
+	name := r.PostFormValue("signupName")
+	phone := r.PostFormValue("signupPh")
+	pass := r.PostFormValue("signupPass")
+	otp := r.PostFormValue("otp")
 
-	status := info.userRepo.UserValidateOtpLogic(ph, otp)
-
-	if status {
-		userData := models.UserModel{UserPhone: ph}
+	if ok := u.userService.UserRegisterLogic(otp, name, phone, pass); ok {
+		userData := models.UserModel{
+			UserName:  name,
+			UserPhone: phone,
+		}
 		claims := &jwtPkg.UserJwtClaim{
 			User:            userData,
 			IsAuthenticated: true,
@@ -173,128 +266,70 @@ func (info *InformationHelper) UserVerifyLoginOtpHandler(w http.ResponseWriter, 
 		token := jwtPkg.SignJwtToken(claims)
 		//
 		expire := time.Now().AddDate(0, 0, 1)
-		cookie := &http.Cookie{Name: "userToken", Value: token, Expires: expire, HttpOnly: true, Path: "/"}
+		cookie := &http.Cookie{Name: "user_token", Value: token, Expires: expire, HttpOnly: true, Path: "/"}
 		http.SetCookie(w, cookie)
 
 		http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 	} else {
-		userData := models.UserModel{UserPhone: ph}
-		claims := &jwtPkg.UserJwtClaim{
-			User:            userData,
-			IsAuthenticated: false,
-		}
 
-		token := jwtPkg.SignJwtToken(claims)
-		//
-		expire := time.Now().AddDate(0, 0, 1)
-		cookie := &http.Cookie{Name: "userToken", Value: token, Expires: expire, HttpOnly: true, Path: "/"}
-		http.SetCookie(w, cookie)
-		http.Redirect(w, r, "/login/otp/getotp", http.StatusFound)
-	}
-}
-
-func (info *InformationHelper) UserRegisterHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-
-	name := r.PostFormValue("signupName")
-	ph := r.PostFormValue("signupPh")
-	pass := r.PostFormValue("signupPass")
-
-	// This only sends the otp for registration, won't update anything on db
-	status := info.userRepo.UserRegisterLogic(name, ph, pass)
-
-	if status {
-		userData := models.UserModel{UserPhone: ph}
-		claims := &jwtPkg.UserJwtClaim{
-			User:            userData,
-			IsAuthenticated: false,
-		}
-
-		token := jwtPkg.SignJwtToken(claims)
-		//
-		expire := time.Now().AddDate(0, 0, 1)
-		cookie := &http.Cookie{Name: "userToken", Value: token, Expires: expire, HttpOnly: true, Path: "/"}
-		http.SetCookie(w, cookie)
-
-		http.Redirect(w, r, "/register/otp/getotp", http.StatusFound)
-	} else {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "login_error",
+			Value:    "Account registration failed. Invalid OTP.",
+			MaxAge:   60, // 60 secs
+			HttpOnly: true,
+			Path:     "/",
+		})
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
 
-func (info *InformationHelper) UserVerifyRegisterOtpHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-
-	otp := r.PostFormValue("loginOtp")
-
-	user := models.ReturnUserModel()
-
-	if ok, flag := info.userRepo.CheckUserRegisterOtpLogic(otp, user.UserName, user.UserPhone, user.UserPass); ok {
-		userData := models.UserModel{
-			UserName:  user.UserName,
-			UserPhone: user.UserPhone,
-		}
-		claims := &jwtPkg.UserJwtClaim{
-			User:            userData,
-			IsAuthenticated: true,
-		}
-
-		token := jwtPkg.SignJwtToken(claims)
-		//
-		expire := time.Now().AddDate(0, 0, 1)
-		cookie := &http.Cookie{Name: "userToken", Value: token, Expires: expire, HttpOnly: true, Path: "/"}
-		http.SetCookie(w, cookie)
-
-		http.Redirect(w, r, "/user/dashboard", http.StatusFound)
-	} else {
-		if flag == "login" {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-		} else if flag == "otp" {
-			http.Redirect(w, r, "/register/otp/getotp", http.StatusSeeOther)
-		}
-	}
-}
-
-func (info *InformationHelper) UserDashboardHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		// recovers panic
 		if e := recover(); e != nil {
 			log.Println(e)
-			cookie := &http.Cookie{Name: "userToken", MaxAge: -1, HttpOnly: true, Path: "/"}
+			http.SetCookie(w, &http.Cookie{
+				Name:     "login_error",
+				Value:    "Sorry, An unknown error occured",
+				MaxAge:   60, // 60 secs
+				HttpOnly: true,
+				Path:     "/",
+			})
+			cookie := &http.Cookie{Name: "user_token", MaxAge: -1, HttpOnly: true, Path: "/"}
 			http.SetCookie(w, cookie)
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 		}
 	}()
 
 	// Creates table for user stories
-	storyErr := info.userRepo.MigrateStoriesDb()
+	storyErr := u.migrationService.MigrateStoriesTable()
 	if storyErr != nil {
 		panic(storyErr.Error())
 	}
 
 	// Creates table for user's personal messages
-	migrateErr := info.messagesRepo.MigrateMessagesDb()
+	migrateErr := u.migrationService.MigrateMessageTable()
 	if migrateErr != nil {
 		panic(migrateErr.Error())
 	}
 
 	// Group migration statements
-	groupMigrationError := info.groupRepo.MigrateGroupDb()
+	groupMigrationError := u.migrationService.MigrateGroupTable()
 	if groupMigrationError != nil {
 		log.Fatal("Can't migrate group - ", groupMigrationError.Error())
 	}
 
-	groupUserMigrationError := info.groupRepo.MigrateUserGroupDb()
+	groupUserMigrationError := u.migrationService.MigrateUserGroupRelationTable()
 	if groupUserMigrationError != nil {
 		log.Fatal("Can't migrate group - ", groupUserMigrationError.Error())
 	}
 
-	groupMessageMigrationError := info.groupRepo.MigrateGroupMessagesDb()
+	groupMessageMigrationError := u.migrationService.MigrateGroupMessageTable()
 	if groupMessageMigrationError != nil {
 		log.Fatal("Can't migrate group - ", groupMessageMigrationError.Error())
 	}
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		log.Println("NO cookie")
 		if err1 == http.ErrNoCookie {
@@ -306,19 +341,17 @@ func (info *InformationHelper) UserDashboardHandler(w http.ResponseWriter, r *ht
 	claim := jwtPkg.GetValueFromJwt(c)
 
 	// Update every sent status of the user to delivered, when the user gets online
-	err := info.messagesRepo.UpdatePmToDelivered(claim.User.UserPhone)
+	err := u.userService.UpdatePmToDelivered(claim.User.UserPhone)
 	if err != nil {
 		panic(err)
 	}
 
-	data, err := info.userRepo.GetDataForDashboardLogic(claim.User.UserPhone)
+	data, err := u.userService.GetDataForDashboardLogic(claim.User.UserPhone)
 	if err != nil {
 		log.Println("Error getting dashboard logic")
-		info.errorStr = err.Error()
 		panic(err.Error())
 	}
 
-	info.errorStr = ""
 	err2 := template.Tpl.ExecuteTemplate(w, "user_dashboard.html", data)
 	if err2 != nil {
 		log.Println(err2)
@@ -326,7 +359,7 @@ func (info *InformationHelper) UserDashboardHandler(w http.ResponseWriter, r *ht
 	}
 }
 
-func (info *InformationHelper) UserAddStoryHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserAddStoryHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -347,7 +380,7 @@ func (info *InformationHelper) UserAddStoryHandler(w http.ResponseWriter, r *htt
 	}
 
 	// Update data to the database (first create the table for the story)
-	err := info.userRepo.AddNewStoryLogic(target, imageNameA)
+	err := u.userService.AddNewStoryLogic(target, imageNameA)
 	if err != nil {
 		panic(err)
 	}
@@ -356,7 +389,7 @@ func (info *InformationHelper) UserAddStoryHandler(w http.ResponseWriter, r *htt
 	http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 }
 
-func (info *InformationHelper) UserStorySeenHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserStorySeenHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -369,7 +402,7 @@ func (info *InformationHelper) UserStorySeenHandler(w http.ResponseWriter, r *ht
 	vars := mux.Vars(r)
 	target := vars["target"]
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		log.Println("NO cookie")
 		if err1 == http.ErrNoCookie {
@@ -381,7 +414,7 @@ func (info *InformationHelper) UserStorySeenHandler(w http.ResponseWriter, r *ht
 	claim := jwtPkg.GetValueFromJwt(c)
 
 	// Add story viewers
-	err := info.userRepo.StorySeenLogic(claim.User.UserPhone, target)
+	err := u.userService.StorySeenLogic(claim.User.UserPhone, target)
 	if err != nil {
 		panic(err)
 	}
@@ -390,7 +423,7 @@ func (info *InformationHelper) UserStorySeenHandler(w http.ResponseWriter, r *ht
 	w.Write(nil)
 }
 
-func (info *InformationHelper) UserDeleteStoryHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserDeleteStoryHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -401,7 +434,7 @@ func (info *InformationHelper) UserDeleteStoryHandler(w http.ResponseWriter, r *
 	vars := mux.Vars(r)
 	target := vars["target"]
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		log.Println("No cookie")
 		if err1 == http.ErrNoCookie {
@@ -417,7 +450,7 @@ func (info *InformationHelper) UserDeleteStoryHandler(w http.ResponseWriter, r *
 	}
 
 	// Delete story
-	err := info.userRepo.DeleteUserStoryLogic(target)
+	err := u.userService.DeleteUserStoryLogic(target)
 	if err != nil {
 		panic(err)
 	}
@@ -425,18 +458,18 @@ func (info *InformationHelper) UserDeleteStoryHandler(w http.ResponseWriter, r *
 	http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 }
 
-func (info *InformationHelper) UserProfilePageHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserProfilePageHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		// recovers panic
 		if e := recover(); e != nil {
 			log.Println(e)
-			cookie := &http.Cookie{Name: "userToken", MaxAge: -1, HttpOnly: true, Path: "/"}
+			cookie := &http.Cookie{Name: "user_token", MaxAge: -1, HttpOnly: true, Path: "/"}
 			http.SetCookie(w, cookie)
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 		}
 	}()
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -447,7 +480,7 @@ func (info *InformationHelper) UserProfilePageHandler(w http.ResponseWriter, r *
 	claim := jwtPkg.GetValueFromJwt(c)
 
 	// Take values from the database
-	userInfo, err2 := info.userRepo.GetUserDataLogic(claim.User.UserPhone)
+	userInfo, err2 := u.userService.GetUserDataLogic(claim.User.UserPhone)
 	if err2 != nil {
 		panic(err2.Error())
 	}
@@ -471,7 +504,7 @@ func (info *InformationHelper) UserProfilePageHandler(w http.ResponseWriter, r *
 	}
 }
 
-func (info *InformationHelper) UserProfileUpdateHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserProfileUpdateHandler(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if e := recover(); e != nil {
@@ -490,7 +523,7 @@ func (info *InformationHelper) UserProfileUpdateHandler(w http.ResponseWriter, r
 
 	file, _, _ := r.FormFile("user_photo")
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -508,7 +541,7 @@ func (info *InformationHelper) UserProfileUpdateHandler(w http.ResponseWriter, r
 		defer file.Close()
 	}
 
-	err2 := info.userRepo.UpdateUserProfileDataLogic(userName, userAbout, imageNameA, claim.User.UserPhone)
+	err2 := u.userService.UpdateUserProfileDataLogic(userName, userAbout, imageNameA, claim.User.UserPhone)
 	if err2 != nil {
 		panic(err2.Error())
 	}
@@ -518,7 +551,7 @@ func (info *InformationHelper) UserProfileUpdateHandler(w http.ResponseWriter, r
 	http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 }
 
-func (info *InformationHelper) UserShowPeopleHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserShowPeopleHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			fmt.Println(e)
@@ -526,7 +559,7 @@ func (info *InformationHelper) UserShowPeopleHandler(w http.ResponseWriter, r *h
 		}
 	}()
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -536,7 +569,7 @@ func (info *InformationHelper) UserShowPeopleHandler(w http.ResponseWriter, r *h
 
 	claim := jwtPkg.GetValueFromJwt(c)
 
-	data, err1 := info.userRepo.GetAllUsersLogic(claim.User.UserPhone)
+	data, err1 := u.userService.GetAllUsersLogic(claim.User.UserPhone)
 	if err1 != nil {
 		panic(err1.Error())
 	}
@@ -548,11 +581,11 @@ func (info *InformationHelper) UserShowPeopleHandler(w http.ResponseWriter, r *h
 	}
 }
 
-func (info *InformationHelper) UserNewChatStartedHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserNewChatStartedHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	target := vars["target"]
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -572,12 +605,12 @@ func (info *InformationHelper) UserNewChatStartedHandler(w http.ResponseWriter, 
 		Status:      "ADMIN",
 	}
 
-	info.messagesRepo.StorePersonalMessagesLogic(data)
+	u.userService.StorePersonalMessagesLogic(data)
 
 	http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 }
 
-func (info *InformationHelper) UserCreateGroup(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserCreateGroup(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if e := recover(); e != nil {
@@ -598,7 +631,7 @@ func (info *InformationHelper) UserCreateGroup(w http.ResponseWriter, r *http.Re
 
 	file, _, _ := r.FormFile("profile_photo")
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -633,7 +666,7 @@ func (info *InformationHelper) UserCreateGroup(w http.ResponseWriter, r *http.Re
 	http.Redirect(w, r, "/user/dashboard/add-group-members", http.StatusSeeOther)
 }
 
-func (info *InformationHelper) UserAddGroupMembers(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserAddGroupMembers(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if e := recover(); e != nil {
@@ -642,7 +675,7 @@ func (info *InformationHelper) UserAddGroupMembers(w http.ResponseWriter, r *htt
 		}
 	}()
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -652,7 +685,7 @@ func (info *InformationHelper) UserAddGroupMembers(w http.ResponseWriter, r *htt
 
 	claim := jwtPkg.GetValueFromJwt(c)
 
-	data, err := info.userRepo.GetAllUsersLogic(claim.User.UserPhone)
+	data, err := u.userService.GetAllUsersLogic(claim.User.UserPhone)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -666,7 +699,7 @@ func (info *InformationHelper) UserAddGroupMembers(w http.ResponseWriter, r *htt
 	}
 }
 
-func (info *InformationHelper) UserGroupCreationHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserGroupCreationHandler(w http.ResponseWriter, r *http.Request) {
 	type groupMembers struct {
 		Data []string `json:"data"`
 	}
@@ -693,7 +726,7 @@ func (info *InformationHelper) UserGroupCreationHandler(w http.ResponseWriter, r
 	groupClaim := jwtPkg.GetValueFromJwt(gc)
 
 	// Claim to get user phone number
-	uc, err2 := r.Cookie("userToken")
+	uc, err2 := r.Cookie("user_token")
 	if err2 != nil {
 		if err2 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -711,7 +744,7 @@ func (info *InformationHelper) UserGroupCreationHandler(w http.ResponseWriter, r
 		Members: val.Data,
 	}
 
-	status, err3 := info.groupRepo.CreateGroupAndInsertDataLogic(data)
+	status, err3 := u.userService.CreateGroupAndInsertDataLogic(data)
 
 	if status {
 		fmt.Println("Success - Redirect to dashboard")
@@ -723,7 +756,7 @@ func (info *InformationHelper) UserGroupCreationHandler(w http.ResponseWriter, r
 	}
 }
 
-func (info *InformationHelper) UserNewChatSelectedHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserNewChatSelectedHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			fmt.Println(e)
@@ -745,7 +778,7 @@ func (info *InformationHelper) UserNewChatSelectedHandler(w http.ResponseWriter,
 		panic(err.Error())
 	}
 
-	uc, err2 := r.Cookie("userToken")
+	uc, err2 := r.Cookie("user_token")
 	if err2 != nil {
 		if err2 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -756,7 +789,7 @@ func (info *InformationHelper) UserNewChatSelectedHandler(w http.ResponseWriter,
 	userClaim := jwtPkg.GetValueFromJwt(uc)
 
 	// the message status of the message which the target has sent to this user should be marked as read
-	err = info.messagesRepo.UpdatePmToRead(target.Data, userClaim.User.UserPhone)
+	err = u.userService.UpdatePmToRead(target.Data, userClaim.User.UserPhone)
 	if err != nil {
 		panic(err)
 	}
@@ -767,14 +800,14 @@ func (info *InformationHelper) UserNewChatSelectedHandler(w http.ResponseWriter,
 	)
 
 	if target.Data != "admin" {
-		data, err1 := info.messagesRepo.GetMessageDataLogic(target.Data, userClaim.User.UserPhone)
+		data, err1 := u.userService.GetMessageDataLogic(target.Data, userClaim.User.UserPhone)
 		if err1 != nil {
 			panic(err1.Error())
 		}
 
 		uVal = data
 
-		val, err2 := info.userRepo.GetUserDataLogic(target.Data)
+		val, err2 := u.userService.GetUserDataLogic(target.Data)
 		if err2 != nil {
 			panic(err2.Error())
 		}
@@ -783,7 +816,7 @@ func (info *InformationHelper) UserNewChatSelectedHandler(w http.ResponseWriter,
 		uAvtr = val.UserAvatarUrl
 		uAbout = val.UserAbout
 	} else {
-		data, err1 := info.messagesRepo.GetMessageDataLogic(target.Data, "all")
+		data, err1 := u.userService.GetMessageDataLogic(target.Data, "all")
 		if err1 != nil {
 			panic(err1.Error())
 		}
@@ -812,7 +845,7 @@ func (info *InformationHelper) UserNewChatSelectedHandler(w http.ResponseWriter,
 	w.Write(s)
 }
 
-func (info *InformationHelper) UserGroupChatSelectedHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserGroupChatSelectedHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			fmt.Println(e)
@@ -835,22 +868,22 @@ func (info *InformationHelper) UserGroupChatSelectedHandler(w http.ResponseWrite
 	}
 
 	// Get all messages from the group using group id
-	messages, err := info.groupRepo.GetAllGroupMessagesLogic(target.Data)
+	messages, err := u.userService.GetAllGroupMessagesLogic(target.Data)
 	if err != nil {
 		panic(err)
 	}
 
 	// Get all group members details
-	uDatas := info.groupRepo.GetAllGroupMembersData(target.Data)
+	uDatas := u.userService.GetAllGroupMembersData(target.Data)
 
 	// Get all group data using the group_id (target)
 	// - group_id, group_name, avatar, messages.
-	data, err := info.groupRepo.GetGroupDetailsLogic(target.Data)
+	data, err := u.userService.GetGroupDetailsLogic(target.Data)
 	if err != nil {
 		panic(err)
 	}
 
-	uc, err2 := r.Cookie("userToken")
+	uc, err2 := r.Cookie("user_token")
 	if err2 != nil {
 		if err2 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -860,7 +893,7 @@ func (info *InformationHelper) UserGroupChatSelectedHandler(w http.ResponseWrite
 
 	userClaim := jwtPkg.GetValueFromJwt(uc)
 
-	isLeft := info.groupRepo.CheckUserLeftTheGroup(userClaim.User.UserPhone, target.Data)
+	isLeft := u.userService.CheckUserLeftTheGroup(userClaim.User.UserPhone, target.Data)
 
 	// make struct and parse data to json format and send
 	xData := struct {
@@ -895,7 +928,7 @@ func (info *InformationHelper) UserGroupChatSelectedHandler(w http.ResponseWrite
 	w.Write(s)
 }
 
-func (info *InformationHelper) GroupUnblockHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) GroupUnblockHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			fmt.Println(e)
@@ -917,7 +950,7 @@ func (info *InformationHelper) GroupUnblockHandler(w http.ResponseWriter, r *htt
 		panic(err.Error())
 	}
 
-	err = info.userRepo.GroupUnblockLogic(target.Data)
+	err = u.userService.GroupUnblockLogic(target.Data)
 	if err != nil {
 		panic(err)
 	}
@@ -927,7 +960,7 @@ func (info *InformationHelper) GroupUnblockHandler(w http.ResponseWriter, r *htt
 	w.Write(s)
 }
 
-func (info *InformationHelper) UserLeftGroupHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserLeftGroupHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println("Oh ohh, Theres an error - ", e)
@@ -937,7 +970,7 @@ func (info *InformationHelper) UserLeftGroupHandler(w http.ResponseWriter, r *ht
 	vars := mux.Vars(r)
 	target := vars["target"]
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -949,7 +982,7 @@ func (info *InformationHelper) UserLeftGroupHandler(w http.ResponseWriter, r *ht
 
 	msg := claim.User.UserPhone + " has left the group."
 
-	err := info.groupRepo.UserLeftTheGroupLogic(target, claim.User.UserPhone, msg)
+	err := u.userService.UserLeftTheGroupLogic(target, claim.User.UserPhone, msg)
 	if err != nil {
 		panic(err)
 	}
@@ -957,7 +990,7 @@ func (info *InformationHelper) UserLeftGroupHandler(w http.ResponseWriter, r *ht
 	http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 }
 
-func (info *InformationHelper) UserKickedOutHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserKickedOutHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println("Oh ohh, Theres an error - ", e)
@@ -970,7 +1003,7 @@ func (info *InformationHelper) UserKickedOutHandler(w http.ResponseWriter, r *ht
 
 	msg := "+91 " + userID + " has been kicked out from the group."
 
-	err := info.groupRepo.UserLeftTheGroupLogic(groupID, userID, msg)
+	err := u.userService.UserLeftTheGroupLogic(groupID, userID, msg)
 	if err != nil {
 		panic(err)
 	}
@@ -978,7 +1011,7 @@ func (info *InformationHelper) UserKickedOutHandler(w http.ResponseWriter, r *ht
 	http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 }
 
-func (info *InformationHelper) UserGroupManagePageHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserGroupManagePageHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -989,7 +1022,7 @@ func (info *InformationHelper) UserGroupManagePageHandler(w http.ResponseWriter,
 	vars := mux.Vars(r)
 	target := vars["target"]
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -999,11 +1032,11 @@ func (info *InformationHelper) UserGroupManagePageHandler(w http.ResponseWriter,
 
 	claim := jwtPkg.GetValueFromJwt(c)
 
-	if !info.groupRepo.CheckUserIsAdmin(target, claim.User.UserPhone) {
+	if !u.userService.CheckUserIsAdmin(target, claim.User.UserPhone) {
 		panic("User Is not an admin")
 	}
 
-	data := info.userRepo.NonGroupMembersLogic(target, claim.User.UserPhone)
+	data := u.userService.NonGroupMembersLogic(target, claim.User.UserPhone)
 
 	if data == nil {
 		panic(errors.New("some error occurred while accessing non group members"))
@@ -1021,7 +1054,7 @@ func (info *InformationHelper) UserGroupManagePageHandler(w http.ResponseWriter,
 	}
 }
 
-func (info *InformationHelper) UserGroupAddMembersHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserGroupAddMembersHandler(w http.ResponseWriter, r *http.Request) {
 	// Getting slice of user ids
 	type groupMembers struct {
 		Data []string `json:"data"`
@@ -1043,7 +1076,7 @@ func (info *InformationHelper) UserGroupAddMembersHandler(w http.ResponseWriter,
 	}
 
 	// redirect to dashboard
-	err = info.groupRepo.AddGroupMembers(target, val.Data)
+	err = u.userService.AddGroupMembers(target, val.Data)
 	if err != nil {
 		log.Println("ERROR happened -- ", err.Error())
 		cookie := &http.Cookie{Name: "userGroupDetails", MaxAge: -1, HttpOnly: true, Path: "/user/dashboard/"}
@@ -1056,7 +1089,7 @@ func (info *InformationHelper) UserGroupAddMembersHandler(w http.ResponseWriter,
 	w.Write(s)
 }
 
-func (info *InformationHelper) UserBlocksHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserBlocksHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -1067,7 +1100,7 @@ func (info *InformationHelper) UserBlocksHandler(w http.ResponseWriter, r *http.
 	vars := mux.Vars(r)
 	target := vars["target"]
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -1077,7 +1110,7 @@ func (info *InformationHelper) UserBlocksHandler(w http.ResponseWriter, r *http.
 
 	claim := jwtPkg.GetValueFromJwt(c)
 
-	err := info.userRepo.UserBlockUserLogic(claim.User.UserPhone, target)
+	err := u.userService.UserBlockUserLogic(claim.User.UserPhone, target)
 	if err != nil {
 		panic(err)
 	}
@@ -1085,7 +1118,7 @@ func (info *InformationHelper) UserBlocksHandler(w http.ResponseWriter, r *http.
 	http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 }
 
-func (info *InformationHelper) UserUnblocksHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserUnblocksHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -1096,7 +1129,7 @@ func (info *InformationHelper) UserUnblocksHandler(w http.ResponseWriter, r *htt
 	vars := mux.Vars(r)
 	target := vars["target"]
 
-	c, err1 := r.Cookie("userToken")
+	c, err1 := r.Cookie("user_token")
 	if err1 != nil {
 		if err1 == http.ErrNoCookie {
 			panic("Cookie not found!")
@@ -1109,7 +1142,7 @@ func (info *InformationHelper) UserUnblocksHandler(w http.ResponseWriter, r *htt
 	fmt.Println("Target = ", target)
 	fmt.Println("Yours = ", claim.User.UserPhone)
 
-	err := info.userRepo.UserUnblockUserLogic(claim.User.UserPhone, target)
+	err := u.userService.UserUnblockUserLogic(claim.User.UserPhone, target)
 	if err != nil {
 		panic(err)
 	}
@@ -1117,7 +1150,7 @@ func (info *InformationHelper) UserUnblocksHandler(w http.ResponseWriter, r *htt
 	http.Redirect(w, r, "/user/dashboard", http.StatusFound)
 }
 
-func (info *InformationHelper) AboutPageHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) AboutPageHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -1131,7 +1164,7 @@ func (info *InformationHelper) AboutPageHandler(w http.ResponseWriter, r *http.R
 	}
 }
 
-func (info *InformationHelper) UserDeleteAccountHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserDeleteAccountHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if e := recover(); e != nil {
 			log.Println(e)
@@ -1144,7 +1177,7 @@ func (info *InformationHelper) UserDeleteAccountHandler(w http.ResponseWriter, r
 
 	// Use transaction to insert row into table B
 	// and then delete a row from table A
-	err := info.userRepo.DeleteUserAccountLogic(target)
+	err := u.userService.DeleteUserAccountLogic(target)
 	if err != nil {
 		panic(err)
 	}
@@ -1155,20 +1188,20 @@ func (info *InformationHelper) UserDeleteAccountHandler(w http.ResponseWriter, r
 
 	token := jwtPkg.SignJwtToken(claims)
 
-	cookie := &http.Cookie{Name: "userToken", Value: token, MaxAge: -1, HttpOnly: true, Path: "/"}
+	cookie := &http.Cookie{Name: "user_token", Value: token, MaxAge: -1, HttpOnly: true, Path: "/"}
 	http.SetCookie(w, cookie)
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func (info *InformationHelper) UserLogoutHandler(w http.ResponseWriter, r *http.Request) {
+func (u *UserHandler) UserLogoutHandler(w http.ResponseWriter, r *http.Request) {
 	claims := &jwtPkg.UserJwtClaim{
 		IsAuthenticated: false,
 	}
 
 	token := jwtPkg.SignJwtToken(claims)
 	//
-	cookie := &http.Cookie{Name: "userToken", Value: token, MaxAge: -1, HttpOnly: true, Path: "/"}
+	cookie := &http.Cookie{Name: "user_token", Value: token, MaxAge: -1, HttpOnly: true, Path: "/"}
 	http.SetCookie(w, cookie)
 
 	http.Redirect(w, r, "/", http.StatusFound)

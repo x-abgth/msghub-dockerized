@@ -3,7 +3,7 @@
 <section id="otp-page" class="h-100">
 	{{ template "particles_div" . }}
 
-	{{ if . }}
+	{{ if ne .ErrorStr "" }}
 		<div class="auth-error-msg alert alert-danger">
 		    <div class="container d-flex justify-content-center">
 		        <div class="alert-icon">
@@ -15,18 +15,24 @@
 	{{ end }}
 
 	<div class="d-flex justify-content-center align-items-center h-100">
-		<form action="/login/otp/getphone" method="POST" id="otpPhoneForm" class="form p-5">
+
+		<form action="/login/otp/validation" method="POST" id="otpPhoneForm" class="form p-5">
 		  <h2>ENTER YOUR REGISTERED PHONE NUMBER</h2>
 
 		  <div class="form-group">
 		  	<p>An OTP will be sent to the number for verification.</p>
 		  </div>
 		  <div class="form-group mt-3">
-		    <label for="exampleInputPhone3" style='text-align: left;'>Enter your number</label>
+		    <label for="exampleInputPhone3" style='text-align: left; width: 100%;'>Enter your number</label>
 		    <input name="phone" type="number" class="form-control" id="exampleInputPhone3" placeholder="eg: 9999999999" autofocus>
 		  </div>
 		  <div class="form-group mt-3">
-			  <button type="submit" class="btn btn-primary">Submit</button>  	
+		    <label for="exampleInputOtp1" style='text-align: left; width: 100%;'>Enter the OTP</label>
+		    <input name="loginOtp" type="number" class="form-control" id="exampleInputOtp1" placeholder="eg: 1234" disabled>
+		  </div>
+		  <div class="form-group mt-3">
+			  <button type="submit" class="btn btn-primary">SEND OTP</button>
+			  <button type="submit" class="btn btn-primary" style="display: none;">SUBMIT</button>  	
 		  </div>
 		</form>
 	</div>
@@ -52,5 +58,49 @@
 	    }
 	 });
 </script>
+<script type="text/javascript">
+	// Get the form and the relevant fields
+	const otpForm = document.querySelector('#otpPhoneForm');
+	const phoneInput = otpForm.querySelector('input[name="phone"]');
+	const otpInput = otpForm.querySelector('input[name="loginOtp"]');
+	const sendButton = otpForm.querySelector('button[type="submit"]:first-child');
+	const submitButton = otpForm.querySelector('button[type="submit"]:last-child');
+
+	// Function to send the AJAX request
+	function sendOtp() {
+	  const phoneNumber = phoneInput.value;
+	  // Make the AJAX request
+	  $.ajax({
+	    type: "POST",
+	    url: "/login/phone/validation",
+	    data: { phone: phoneNumber },
+	    success: function(result) {
+	      if (result.result === true) {
+	        // If the result is true, hide the send button and show the submit button
+	        sendButton.style.display = "none";
+	        submitButton.style.display = "block";
+	        // Disable the phone number field and enable the OTP field
+	        phoneInput.readOnly = true;
+	        otpInput.disabled = false;
+	        otpInput.focus();
+	      } else {
+	        // If the result is not true, show an error message
+	        alert("Failed to send OTP. Please try again later.");
+	      }
+	    },
+	    error: function(xhr, status, error) {
+	      // Show an error message if the AJAX request fails
+	      alert("Failed to send OTP. Please try again later.");
+	    }
+	  });
+	}
+
+	// Add a click event listener to the send button
+	sendButton.addEventListener('click', function(event) {
+	  event.preventDefault();
+	  sendOtp();
+	});
+</script>
+
 
 {{ template "footer_part" . }}

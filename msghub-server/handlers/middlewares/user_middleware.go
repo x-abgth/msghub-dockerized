@@ -16,7 +16,7 @@ func UserAuthorizationBeforeLogin(handler http.HandlerFunc) http.HandlerFunc {
 			}
 		}()
 
-		c, err1 := r.Cookie("userToken")
+		c, err1 := r.Cookie("user_token")
 		if err1 != nil {
 			if err1 == http.ErrNoCookie {
 				panic("Cookie not found!")
@@ -43,7 +43,7 @@ func UserAuthorizationAfterLogin(handler http.HandlerFunc) http.HandlerFunc {
 			}
 		}()
 
-		c, err1 := r.Cookie("userToken")
+		c, err1 := r.Cookie("user_token")
 		if err1 != nil {
 			if err1 == http.ErrNoCookie {
 				panic("Cookie not found!")

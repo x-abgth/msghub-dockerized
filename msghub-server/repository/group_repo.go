@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"errors"
 	"log"
 	"strconv"
@@ -9,54 +10,31 @@ import (
 	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
 )
 
-type Group struct {
-	GroupId           int    `json:"group_id"`
-	GroupName         string `json:"group_name"`
-	GroupAvatar       string `json:"group_avatar"`
-	GroupAbout        string `json:"group_about"`
-	GroupCreator      string `json:"group_creator"`
-	GroupCreatedDate  string `json:"group_created_date"`
-	GroupTotalMembers int    `json:"group_total_members"`
-	IsBanned          bool   `json:"is_banned"`
-	BannedTime        string `json:"banned_time"`
+type GroupRepository interface {
+	CreateGroup(group models.Group) (int, error)
+	GetGroupMemberCount(groupID string) string
+	UpdateGroupMemberCount(count int, groupID string) error
+	CreateUserGroupRelation(groupID int, userID, userRole string) error
+	InsertGroupMessagesRepo(message models.GroupMessage) error
+	GetAllGroupsForAUser(userID string) ([]int, error)
+	GetRecentGroupMessages(groupID int) (models.GrpMsgModel, error)
+	GetAllMessagesFromGroup(groupID int) ([]models.MessageModel, error)
+	GetGroupDetailsRepo(groupID int) (models.GroupModel, error)
+	CheckGroupBlockedRepo(groupID int) bool
+	GetAllTheGroupMembersRepo(groupID string) []string
+	IsUserGroupAdminRepo(groupID, userID string) string
+	IsUserInGroupRepo(groupID, userID string) string
+	UserGroupStatusUpdateRepo(groupID, userID string) error
+	UserLeftGroupRepo(groupID, userID string) error
 }
 
-type UserGroupRelation struct {
-	Id       int    `json:"id"`
-	GroupId  int    `json:"group_id"`
-	UserId   string `json:"user_id"`
-	UserRole string `json:"user_role"`
+func NewGroupRepository(db *sql.DB) GroupRepository {
+	return &repository{db}
 }
 
-type GroupMessage struct {
-	MsgId          int    `json:"msg_id"`
-	GroupId        int    `json:"group_id"`
-	SenderId       string `json:"sender_id"`
-	MessageContent string `json:"message_content"`
-	ContentType    string `json:"content_type"`
-	Status         string `json:"status"`
-	SentTime       string `json:"sent_time"`
-	IsRecent       bool   `json:"is_recent"`
-}
-
-func (group Group) CreateGroupTable() error {
-	_, err := models.SqlDb.Exec(`CREATE TABLE IF NOT EXISTS groups(group_id BIGSERIAL PRIMARY KEY NOT NULL, group_name TEXT NOT NULL, group_avatar TEXT NOT NULL, group_about TEXT NOT NULL, group_creator TEXT NOT NULL, group_created_date TEXT NOT NULL, group_total_members BIGINT NOT NULL, is_banned BOOLEAN NOT NULL, banned_time TEXT);`)
-	return err
-}
-
-func (relation UserGroupRelation) CreateUserGroupRelationTable() error {
-	_, err := models.SqlDb.Exec(`CREATE TABLE IF NOT EXISTS user_group_relations(id BIGSERIAL PRIMARY KEY NOT NULL, group_id BIGINT NOT NULL, user_id TEXT NOT NULL, user_role TEXT NOT NULL);`)
-	return err
-}
-
-func (gm GroupMessage) CreateGroupMessageTable() error {
-	_, err := models.SqlDb.Exec(`CREATE TABLE IF NOT EXISTS group_messages(msg_id BIGSERIAL PRIMARY KEY NOT NULL, group_id BIGINT NOT NULL, sender_id TEXT NOT NULL, message_content TEXT NOT NULL, sent_time TEXT NOT NULL, is_recent BOOLEAN NOT NULL, status TEXT NOT NULL, content_type TEXT);`)
-	return err
-}
-
-func CreateGroup(data Group) (int, error) {
+func (r *repository) CreateGroup(data models.Group) (int, error) {
 	var id int
-	if err := models.SqlDb.QueryRow(`INSERT INTO groups
+	if err := r.db.QueryRow(`INSERT INTO groups
 		(group_name, group_avatar, group_about, group_creator, group_created_date, group_total_members, is_banned) 
 VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING group_id`, data.GroupName, data.GroupAvatar, data.GroupAbout, data.GroupCreator, data.GroupCreatedDate, data.GroupTotalMembers, data.IsBanned).Scan(&id); err != nil {
 		log.Println(err.Error())
@@ -66,9 +44,9 @@ VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING group_id`, data.GroupName, data.Gro
 	return id, nil
 }
 
-func (group Group) GetGroupMemberCount(id string) string {
+func (r *repository) GetGroupMemberCount(id string) string {
 	var total string
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT 
     	group_total_members
 	FROM groups
@@ -89,8 +67,8 @@ func (group Group) GetGroupMemberCount(id string) string {
 	return total
 }
 
-func (group Group) UpdateGroupMemberCount(num int, id string) error {
-	_, err1 := models.SqlDb.Exec(`UPDATE groups
+func (r *repository) UpdateGroupMemberCount(num int, id string) error {
+	_, err1 := r.db.Exec(`UPDATE groups
 		SET group_total_members = $1
 		WHERE group_id = $2`, num, id)
 	if err1 != nil {
@@ -100,8 +78,8 @@ func (group Group) UpdateGroupMemberCount(num int, id string) error {
 	return nil
 }
 
-func (relation UserGroupRelation) CreateUserGroupRelation(groupId int, userId, role string) error {
-	_, err1 := models.SqlDb.Exec(`INSERT INTO user_group_relations(
+func (r *repository) CreateUserGroupRelation(groupId int, userId, role string) error {
+	_, err1 := r.db.Exec(`INSERT INTO user_group_relations(
 	                 group_id, user_id, user_role)
 	VALUES($1, $2, $3);`,
 		groupId, userId, role)
@@ -113,14 +91,14 @@ func (relation UserGroupRelation) CreateUserGroupRelation(groupId int, userId, r
 	return nil
 }
 
-func (gm GroupMessage) InsertGroupMessagesRepo(message GroupMessage) error {
+func (r *repository) InsertGroupMessagesRepo(message models.GroupMessage) error {
 
 	var (
 		msgID int
 		res   []int
 	)
 
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT 
     	msg_id
 	FROM group_messages
@@ -141,7 +119,7 @@ func (gm GroupMessage) InsertGroupMessagesRepo(message GroupMessage) error {
 	}
 
 	for i := range res {
-		_, err1 := models.SqlDb.Exec(`UPDATE group_messages
+		_, err1 := r.db.Exec(`UPDATE group_messages
 		SET is_recent = false
 		WHERE msg_id = $1`,
 			res[i])
@@ -151,7 +129,7 @@ func (gm GroupMessage) InsertGroupMessagesRepo(message GroupMessage) error {
 		}
 	}
 
-	_, err1 := models.SqlDb.Exec(`INSERT INTO group_messages(
+	_, err1 := r.db.Exec(`INSERT INTO group_messages(
 	                 group_id, sender_id, message_content, content_type, status, sent_time, is_recent)
 	VALUES($1, $2, $3, $4, $5, $6, $7);`,
 		message.GroupId, message.SenderId, message.MessageContent, message.ContentType, message.Status, message.SentTime, true)
@@ -163,12 +141,12 @@ func (gm GroupMessage) InsertGroupMessagesRepo(message GroupMessage) error {
 	return nil
 }
 
-func (relation UserGroupRelation) GetAllGroupsForAUser(ph string) ([]int, error) {
+func (r *repository) GetAllGroupsForAUser(ph string) ([]int, error) {
 	var (
 		num int
 		res []int
 	)
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT 
     	group_id
 	FROM user_group_relations
@@ -189,14 +167,14 @@ func (relation UserGroupRelation) GetAllGroupsForAUser(ph string) ([]int, error)
 	return res, nil
 }
 
-func (gm GroupMessage) GetRecentGroupMessages(id int) (models.GrpMsgModel, error) {
+func (r *repository) GetRecentGroupMessages(id int) (models.GrpMsgModel, error) {
 	var (
 		groupID, name, avtr, sender, content, time string
 		cType                                      *string
 		res                                        models.GrpMsgModel
 	)
 
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT groups.group_id, groups.group_name, groups.group_avatar, group_messages.sender_id, group_messages.message_content, group_messages.sent_time, group_messages.content_type 
 FROM groups 
     INNER JOIN group_messages 
@@ -241,12 +219,12 @@ FROM groups
 	return res, nil
 }
 
-func (gm GroupMessage) GetAllMessagesFromGroup(id int) ([]models.MessageModel, error) {
+func (r *repository) GetAllMessagesFromGroup(id int) ([]models.MessageModel, error) {
 	var (
 		sender, message, time, cType string
 		res                          []models.MessageModel
 	)
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT sender_id, message_content, sent_time, content_type FROM group_messages WHERE group_id = $1;`, id)
 	if err != nil {
 		return nil, err
@@ -277,13 +255,13 @@ func (gm GroupMessage) GetAllMessagesFromGroup(id int) ([]models.MessageModel, e
 	return res, nil
 }
 
-func (group Group) GetGroupDetailsRepo(id int) (models.GroupModel, error) {
+func (r *repository) GetGroupDetailsRepo(id int) (models.GroupModel, error) {
 	var (
 		name, avatar, about, creator, date, totalMembers string
 		banTime                                          *string
 		isBan                                            bool
 	)
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT group_name, group_avatar, group_about, group_creator, group_created_date, group_total_members, is_banned, banned_time FROM groups WHERE group_id = $1;`, id)
 	if err != nil {
 		return models.GroupModel{}, err
@@ -327,9 +305,9 @@ func (group Group) GetGroupDetailsRepo(id int) (models.GroupModel, error) {
 	}, nil
 }
 
-func (group Group) CheckGroupBlockedRepo(id int) bool {
+func (r *repository) CheckGroupBlockedRepo(id int) bool {
 	var isBan bool
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT is_banned FROM groups WHERE group_id = $1;`, id)
 	if err != nil {
 		return false
@@ -346,10 +324,10 @@ func (group Group) CheckGroupBlockedRepo(id int) bool {
 	return true
 }
 
-func (relation UserGroupRelation) GetAllTheGroupMembersRepo(id string) []string {
+func (r *repository) GetAllTheGroupMembersRepo(id string) []string {
 	var uid, role, admin string
 	var res []string
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT user_id, user_role FROM user_group_relations WHERE group_id = $1 AND user_role != $2;`, id, "nil")
 	if err != nil {
 		return res
@@ -376,9 +354,9 @@ func (relation UserGroupRelation) GetAllTheGroupMembersRepo(id string) []string 
 	return res
 }
 
-func (relation UserGroupRelation) IsUserGroupAdminRepo(gid, uid string) string {
+func (r *repository) IsUserGroupAdminRepo(gid, uid string) string {
 	var role string
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT user_role FROM user_group_relations WHERE group_id = $1 AND user_id = $2;`, gid, uid)
 	if err != nil {
 		return ""
@@ -395,9 +373,9 @@ func (relation UserGroupRelation) IsUserGroupAdminRepo(gid, uid string) string {
 	return role
 }
 
-func (relation UserGroupRelation) IsUserInGroupRepo(gid, uid string) string {
+func (r *repository) IsUserInGroupRepo(gid, uid string) string {
 	var role string
-	rows, err := models.SqlDb.Query(
+	rows, err := r.db.Query(
 		`SELECT user_role FROM user_group_relations WHERE group_id = $1 AND user_id = $2;`, gid, uid)
 	if err != nil {
 		return ""
@@ -414,8 +392,8 @@ func (relation UserGroupRelation) IsUserInGroupRepo(gid, uid string) string {
 	return role
 }
 
-func (relation UserGroupRelation) UserGroupStatusUpdateRepo(gid, uid string) error {
-	_, err1 := models.SqlDb.Exec(`UPDATE user_group_relations
+func (r *repository) UserGroupStatusUpdateRepo(gid, uid string) error {
+	_, err1 := r.db.Exec(`UPDATE user_group_relations
 		SET user_role = 'member'
 		WHERE group_id = $1 AND user_id = $2;`, gid, uid)
 	if err1 != nil {
@@ -425,8 +403,8 @@ func (relation UserGroupRelation) UserGroupStatusUpdateRepo(gid, uid string) err
 	return nil
 }
 
-func (relation UserGroupRelation) UserLeftGroupRepo(gid, uid string) error {
-	_, err1 := models.SqlDb.Exec(`UPDATE user_group_relations
+func (r *repository) UserLeftGroupRepo(gid, uid string) error {
+	_, err1 := r.db.Exec(`UPDATE user_group_relations
 		SET user_role = 'nil'
 		WHERE group_id = $1 AND user_id = $2;`, gid, uid)
 	if err1 != nil {

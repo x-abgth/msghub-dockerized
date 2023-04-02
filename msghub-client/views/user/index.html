@@ -3,6 +3,13 @@
 
 {{ template "header_part" . }}
 
+<style type="text/css">
+	.input.disabled {
+	  background-color: #f5f5f5 !important;
+	  color: #666 !important;
+	}
+</style>
+
 <section class="outer_container">
 
 	{{ if .ErrorStr }}
@@ -23,7 +30,8 @@
 			<input type="text" name="signupName" placeholder="Name" class="input" />
 			<input type="tel" name="signupPh" placeholder="Phone Number" class="input" />
 			<input type="password" name="signupPass" placeholder="Password" class="input" />
-			<button class="authBtn" type="submit">Sign Up</button>
+			<button class="authBtn" id="continueSubmit">Continue</button>
+			<button class="authBtn" id="signUpSubmit" type="submit" style="display: none;">Sign Up</button>
 			<p class="mt-3">Already a user? <a href="javascript:leftForm()" class="nothing-btn" id="signIn">Sign In</a></p>
 		</form>
 	</div>
@@ -35,8 +43,8 @@
 			<input type="tel" name="signinPh" placeholder="Phone Number" class="input" />
 			<input type="password" name="signinPass" placeholder="Password" class="input" />
 			<div><a href="#" class="link">Forgot password?</a></div>
-			<button class="authBtn" type="submit">Sign In</button>
-			<a href="/login/otp/getphone" id="signin-otp-bt" class="mt-2 px-4 py-3">SIGN IN WITH OTP</a> 
+			<button class="authBtn"  id="signInSubmit" type="submit">Sign In</button>
+			<a href="/login/phone/validation" id="signin-otp-bt" class="mt-2 px-4 py-3">SIGN IN WITH OTP</a> 
 			<p class="mt-3">Don't have an account? <a href="javascript:rightForm()" class="nothing-btn" id="signUp">Sign Up</a></p>
 		</form>
 	</div>
@@ -66,9 +74,11 @@
 
 	const signInBtn = document.getElementById("signIn");
 	const signUpBtn = document.getElementById("signUp");
-	const fistForm = document.getElementById("form1");
+	const firstForm = document.getElementById("form1");
 	const secondForm = document.getElementById("form2");
 	const container = document.querySelector(".outer_container");
+	const continueSbmt = document.getElementById("continueSubmit");
+	const signUpSbmt = document.getElementById("signUpSubmit");
 
 	jQuery('#form1').validate({
 	    rules: {
@@ -85,6 +95,10 @@
 	      signupPass: {
 	      	required: true,
 	      	minlength: 5,
+	      },
+	      otp: {
+	      	required: true,
+	      	minlength: 4,
 	      },
 	    }, messages: {
 	      signupName: 'Please enter valid name',
@@ -122,6 +136,59 @@
 	function rightForm() {
 		container.classList.add("right-panel-active");
 	}
+
+	function sendOtp() {
+		const formData = new FormData(firstForm);
+		const name = formData.get('signupName');
+		const phoneNumber = formData.get('signupPh');
+		const password = formData.get('signupPass');
+
+	  // Make the AJAX request
+	  $.ajax({
+	    type: "POST",
+	    url: "/register/phone",
+	    data: { phone: phoneNumber },
+	    success: function(result) {
+	      if (result.result === true) {
+	      	const otpInput = document.createElement('input');
+			otpInput.type = 'text';
+			otpInput.name = 'otp';
+			otpInput.placeholder = 'OTP';
+			otpInput.classList.add('input');
+			firstForm.insertBefore(otpInput, signUpSbmt);
+  			otpInput.focus();
+
+	        const inputs = firstForm.querySelectorAll('.input');
+  			inputs.forEach((input) => {
+			    if (input !== otpInput) {
+			    	input.readOnly = true;
+			      	input.value = formData.get(input.name);
+			      	input.classList.add('disabled');
+			    }
+			});
+
+  			continueSbmt.style.display = "none";
+	        signUpSbmt.style.display = "block";
+
+  			 alert("OTP sent to your phone. Please check and enter to complete signup.");
+
+	      } else {
+	        // If the result is not true, show an error message
+	        alert("Failed to send OTP. Please try again later.");
+	      }
+	    },
+	    error: function(xhr, status, error) {
+	      // Show an error message if the AJAX request fails
+	      alert("Failed to send OTP. Please try again later.");
+	    }
+	  });
+	}
+
+	// Add a click event listener to the send button
+	continueSbmt.addEventListener('click', function(event) {
+	  event.preventDefault();
+	  sendOtp();
+	});
 
 </script>
 {{ template "footer_part" . }}

@@ -15,7 +15,7 @@ func AdminAuthenticationMiddleware(handler http.HandlerFunc) http.HandlerFunc {
 			}
 		}()
 
-		c, err1 := r.Cookie("adminToken")
+		c, err1 := r.Cookie("admin_token")
 		if err1 != nil {
 			if err1 == http.ErrNoCookie {
 				panic("Cookie not found!")
