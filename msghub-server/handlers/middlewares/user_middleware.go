@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -18,16 +19,16 @@ func UserAuthorizationBeforeLogin(handler http.HandlerFunc) http.HandlerFunc {
 
 		c, err1 := r.Cookie("user_token")
 		if err1 != nil {
-			if err1 == http.ErrNoCookie {
-				panic("Cookie not found!")
-			}
-			panic("Unknown error occurred!")
+			panic("Cookie not found!")
 		}
 
 		claim := jwtPkg.GetValueFromJwt(c)
 		if claim.IsAuthenticated {
 			log.Println("Redirecting to dashboard!")
-			http.Redirect(w, r, "/user/dashboard", http.StatusFound)
+
+			userID := claim.UserID
+			ctx := context.WithValue(r.Context(), "userId", userID)
+			http.Redirect(w, r.WithContext(ctx), "/user/dashboard", http.StatusFound)
 		} else {
 			panic("User is not authenticated!")
 		}
@@ -45,17 +46,16 @@ func UserAuthorizationAfterLogin(handler http.HandlerFunc) http.HandlerFunc {
 
 		c, err1 := r.Cookie("user_token")
 		if err1 != nil {
-			if err1 == http.ErrNoCookie {
-				panic("Cookie not found!")
-			}
-			panic("Unknown error occurred!")
+			panic("Cookie not found!")
 		}
 
 		claim := jwtPkg.GetValueFromJwt(c)
 		if !claim.IsAuthenticated {
 			panic("redirecting to login page")
 		} else {
-			handler.ServeHTTP(w, r)
+			userID := claim.UserID
+			ctx := context.WithValue(r.Context(), "userId", userID)
+			handler.ServeHTTP(w, r.WithContext(ctx))
 		}
 	}
 }

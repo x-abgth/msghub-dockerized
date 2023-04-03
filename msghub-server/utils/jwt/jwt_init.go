@@ -4,14 +4,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/x-abgth/msghub-dockerized/msghub-server/models"
-
 	"github.com/golang-jwt/jwt/v4"
 )
 
 type UserJwtClaim struct {
-	User            models.UserModel
-	GroupModel      models.GroupModel
+	UserID          string
 	IsAuthenticated bool
 	jwt.RegisteredClaims
 }

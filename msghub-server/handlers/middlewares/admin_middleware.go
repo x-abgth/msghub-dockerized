@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"context"
 	"net/http"
 
 	jwtPkg "github.com/x-abgth/msghub-dockerized/msghub-server/utils/jwt"
@@ -27,7 +28,9 @@ func AdminAuthenticationMiddleware(handler http.HandlerFunc) http.HandlerFunc {
 		if !claim.IsAuthenticated {
 			panic("redirecting to login page")
 		} else {
-			handler.ServeHTTP(w, r)
+			admin := claim.AdminName
+			ctx := context.WithValue(r.Context(), "admin", admin)
+			handler.ServeHTTP(w, r.WithContext(ctx))
 		}
 	}
 }

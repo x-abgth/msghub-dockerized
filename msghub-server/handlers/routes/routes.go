@@ -8,11 +8,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/handlers"
+	"github.com/x-abgth/msghub-dockerized/msghub-server/handlers/middlewares"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/logic"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/repository"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/socket"
 	"github.com/x-abgth/msghub-dockerized/msghub-server/template"
-	jwtPkg "github.com/x-abgth/msghub-dockerized/msghub-server/utils/jwt"
 )
 
 func InitializeRoutes(db *sql.DB, theMux *mux.Router, server *socket.WsServer) {
@@ -46,7 +46,7 @@ func InitializeRoutes(db *sql.DB, theMux *mux.Router, server *socket.WsServer) {
 	go hub.Run()
 
 	// For personal messaging
-	theMux.HandleFunc("/ws/{target}", func(w http.ResponseWriter, r *http.Request) {
+	theMux.HandleFunc("/ws/{target}", middlewares.UserAuthorizationAfterLogin(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if e := recover(); e != nil {
 				log.Println(e)
@@ -57,24 +57,16 @@ func InitializeRoutes(db *sql.DB, theMux *mux.Router, server *socket.WsServer) {
 		vars := mux.Vars(r)
 		target := vars["target"]
 
-		c, err1 := r.Cookie("user_token")
-		if err1 != nil {
-			if err1 == http.ErrNoCookie {
-				panic("No cookie found - " + err1.Error())
-			}
-			panic(err1.Error())
+		userId, ok := r.Context().Value("userId").(string)
+		if !ok {
+			panic("user id is not found")
 		}
 
-		claim := jwtPkg.GetValueFromJwt(c) // error
-		if claim == nil {
-			panic("JWT error happened!")
-		}
-
-		socket.ServeWs(claim.User.UserPhone, target, server, w, r)
-	})
+		socket.ServeWs(userId, target, server, w, r)
+	}))
 
 	// For group messaging
-	theMux.HandleFunc("/ws/group/{id}", func(w http.ResponseWriter, r *http.Request) {
+	theMux.HandleFunc("/ws/group/{id}", middlewares.UserAuthorizationAfterLogin(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("--------- IN /WS/TARGET HANDLER FUNCTION ------------")
 
 		defer func() {
@@ -87,20 +79,15 @@ func InitializeRoutes(db *sql.DB, theMux *mux.Router, server *socket.WsServer) {
 		vars := mux.Vars(r)
 		target := vars["id"]
 
-		c, err1 := r.Cookie("user_token")
-		if err1 != nil {
-			if err1 == http.ErrNoCookie {
-				panic("No cookie found - " + err1.Error())
-			}
-			panic(err1.Error())
+		userId, ok := r.Context().Value("userId").(string)
+		if !ok {
+			panic("user id is not found")
 		}
 
-		claim := jwtPkg.GetValueFromJwt(c) // error
-
-		if !userService.CheckUserLeftTheGroup(claim.User.UserPhone, target) {
+		if !userService.CheckUserLeftTheGroup(userId, target) {
 			socket.ServeGroupWs(hub, target, w, r)
 		}
-	})
+	}))
 }
 
 // 404 Error page handler function

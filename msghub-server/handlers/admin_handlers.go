@@ -33,29 +33,19 @@ func (a *AdminHandler) AdminLoginPageHandler(w http.ResponseWriter, r *http.Requ
 		os.Exit(1)
 	}
 
-	c, err1 := r.Cookie("admin_token")
-	if err1 != nil {
-		type adminLoginData struct {
-			ErrStr string
-		}
-
-		var data adminLoginData
-		cErr, _ := r.Cookie("admin_error")
-		data = adminLoginData{
-			ErrStr: cErr.Value,
-		}
-
-		err := template.Tpl.ExecuteTemplate(w, "admin_login.html", data)
-		if err != nil {
-			log.Println(err)
-			os.Exit(1)
-		}
-	} else if jwtPkg.GetValueFromAdminJwt(c).IsAuthenticated {
-		http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
-	} else {
-		panic("An unknown error occured while getting the cookie!")
+	type adminLoginData struct {
+		ErrStr string
 	}
-
+	var data adminLoginData
+	cErr, _ := r.Cookie("admin_error")
+	data = adminLoginData{
+		ErrStr: cErr.Value,
+	}
+	err := template.Tpl.ExecuteTemplate(w, "admin_login.html", data)
+	if err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
 }
 
 func (a *AdminHandler) AdminAuthenticateHandler(w http.ResponseWriter, r *http.Request) {
@@ -106,19 +96,13 @@ func (a *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Requ
 		}
 	}()
 
-	// Get admin name
-	cookie, err1 := r.Cookie("admin_token")
-	if err1 != nil {
-		if err1 == http.ErrNoCookie {
-			panic("Cookie not found!")
-		}
-		panic("Unknown error occurred!")
+	admin, ok := r.Context().Value("admin").(string)
+	if !ok {
+		panic("admin name not found")
 	}
 
-	claim := jwtPkg.GetValueFromAdminJwt(cookie)
-
 	// Get admin table content
-	a1, err := a.adminService.GetAllAdminsData(claim.AdminName)
+	a1, err := a.adminService.GetAllAdminsData(admin)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -143,7 +127,7 @@ func (a *AdminHandler) AdminDashboardHandler(w http.ResponseWriter, r *http.Requ
 
 	// Set data
 	data := models.AdminDashboardModel{
-		AdminName:             claim.AdminName,
+		AdminName:             admin,
 		AdminTbContent:        a1,
 		UsersTbContent:        b1,
 		DeletedUsersTbContent: c1,

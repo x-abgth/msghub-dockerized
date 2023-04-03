@@ -14,7 +14,7 @@ import (
 )
 
 type UserLogic interface {
-	UserLoginLogic(phone, password string) (models.UserModel, error)
+	UserLoginLogic(phone, password string) error
 	UserDuplicationStatsAndSendOtpLogic(phone string) error
 	UserValidateOtpLogic(phone, otp string) error
 	UserRegisterPhoneValidationLogic(phone string) error
@@ -62,47 +62,47 @@ func NewUserLogic(userRepo repository.UserRepository, groupRepo repository.Group
 	return &userDbLogic{userRepository: userRepo, groupRepository: groupRepo, messageRepository: messageRepo}
 }
 
-func (u *userDbLogic) UserLoginLogic(phone, password string) (models.UserModel, error) {
+func (u *userDbLogic) UserLoginLogic(phone, password string) error {
 	var (
 		count int
 		user  models.UserModel
 	)
 	count, user, err := u.userRepository.GetUserDataUsingPhone(phone)
 	if err != nil {
-		return user, errors.New("you don't have an account, Please register")
+		return errors.New("you don't have an account, Please register")
 	}
 
 	// Check the value is isBlocked and if string convert to bool using if()
 	if user.UserBlocked {
 		if user.BlockDur == "permanent" {
-			return user, errors.New("you have been permanently blocked from this website")
+			return errors.New("you have been permanently blocked from this website")
 		} else {
 			t, err := time.Parse("2-1-2006 3:04:05 PM", user.BlockDur)
 			if err != nil {
 				log.Println(err)
-				return user, errors.New("an unknown error occurred, but you're blocked")
+				return errors.New("an unknown error occurred, but you're blocked")
 			}
 
 			if float64(t.Sub(time.Now())) < 0.009 {
 				err := u.userRepository.UndoAdminBlockRepo(phone)
 				if err != nil {
-					return user, errors.New("an unknown error occurred")
+					return errors.New("an unknown error occurred")
 				}
-				return user, nil
+				return nil
 			}
 
 			exp := strings.Split(user.BlockDur, " ")
-			return user, errors.New("you have been blocked till " + exp[0] + " from this website")
+			return errors.New("you have been blocked till " + exp[0] + " from this website")
 		}
 	} else if count < 1 {
-		return user, errors.New("you don't have an account, Please register")
+		return errors.New("you don't have an account, Please register")
 	} else if count > 1 {
-		return user, errors.New("something went wrong. Try login again")
+		return errors.New("something went wrong. Try login again")
 	} else {
 		if utils.CheckPasswordMatch(password, user.UserPass) {
-			return user, nil
+			return nil
 		} else {
-			return user, errors.New("invalid phone number or password")
+			return errors.New("invalid phone number or password")
 		}
 	}
 }
