@@ -47,16 +47,13 @@ func (server *WsServer) Run() {
 
 // If a client is joined we will make the map value to true.
 func (server *WsServer) registerClient(client *Client) {
-	//room := NewRoom(client.Name, client.ID, true)
-	//room.RunRoom()
-	//server.listOnlineClients(client)
+
 	server.clients[client] = true
 }
 
 // If the client is left from the socket, we will delete the client key and value.
 func (server *WsServer) unregisterClient(client *Client) {
 	fmt.Println("unregistered")
-	//server.notifyClientLeft(client)
 	delete(server.clients, client)
 }
 

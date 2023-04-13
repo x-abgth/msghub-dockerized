@@ -87,8 +87,6 @@ func (u *UserHandler) UserLoginCredentialsHandler(w http.ResponseWriter, r *http
 	ph := r.PostFormValue("signinPh")
 	pass := r.PostFormValue("signinPass")
 
-	handleExceptions(w, r, "/")
-
 	err := u.userService.UserLoginLogic(ph, pass)
 	if err == nil {
 		// assigning JWT tokens
@@ -487,6 +485,11 @@ func (u *UserHandler) UserProfileUpdateHandler(w http.ResponseWriter, r *http.Re
 		}
 	}()
 
+	userId, ok := r.Context().Value("userId").(string)
+	if !ok {
+		panic("user id is not found")
+	}
+
 	err := r.ParseMultipartForm(10 << 24)
 	if err != nil {
 		panic(err.Error())
@@ -495,24 +498,21 @@ func (u *UserHandler) UserProfileUpdateHandler(w http.ResponseWriter, r *http.Re
 	userName := r.PostFormValue("name")
 	userAbout := r.PostFormValue("about")
 
-	file, _, _ := r.FormFile("user_photo")
+	{
+		file, _, _ := r.FormFile("user_photo")
 
-	userId, ok := r.Context().Value("userId").(string)
-	if !ok {
-		panic("user id is not found")
-	}
+		var imageNameA string
+		if file != nil {
 
-	var imageNameA string
-	if file != nil {
+			// Check weather the string is same as in db
+			imageNameA = utils.StoreThisFileInBucket("user_dp_images/", userId, file)
+			defer file.Close()
+		}
 
-		// Check weather the string is same as in db
-		imageNameA = utils.StoreThisFileInBucket("user_dp_images/", userId, file)
-		defer file.Close()
-	}
-
-	err2 := u.userService.UpdateUserProfileDataLogic(userName, userAbout, imageNameA, userId)
-	if err2 != nil {
-		panic(err2.Error())
+		err2 := u.userService.UpdateUserProfileDataLogic(userName, userAbout, imageNameA, userId)
+		if err2 != nil {
+			panic(err2.Error())
+		}
 	}
 
 	// Update data to the database
@@ -578,6 +578,11 @@ func (u *UserHandler) UserCreateGroup(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	userId, ok := r.Context().Value("userId").(string)
+	if !ok {
+		panic("user id is not found")
+	}
+
 	// Parse form to get data
 	err := r.ParseMultipartForm(10 << 24)
 	if err != nil {
@@ -585,40 +590,39 @@ func (u *UserHandler) UserCreateGroup(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/user/dashboard", http.StatusSeeOther)
 	}
 
-	groupName := r.PostFormValue("groupName")
-	groupAbout := r.PostFormValue("group-about")
+	{
+		groupName := r.PostFormValue("groupName")
+		groupAbout := r.PostFormValue("group-about")
 
-	file, _, _ := r.FormFile("profile_photo")
+		file, _, _ := r.FormFile("profile_photo")
 
-	userId, ok := r.Context().Value("userId").(string)
-	if !ok {
-		panic("user id is not found")
+		var imageNameA string
+		if file != nil {
+
+			// Check weather the string is same as in db
+			imageNameA = utils.StoreThisFileInBucket("group_dp_images/", groupName+userId, file)
+			defer file.Close()
+		}
+
+		{
+			data := models.GroupModel{
+				Image: imageNameA,
+				Name:  groupName,
+				About: groupAbout,
+			}
+
+			encoded, err := json.Marshal(data)
+			if err != nil {
+				panic("json encoding failed")
+			}
+
+			encoded64 := base64.StdEncoding.EncodeToString(encoded)
+
+			expire := time.Now().AddDate(0, 0, 1)
+			cookie := &http.Cookie{Name: "userGroupDetails", Value: encoded64, Expires: expire, HttpOnly: true, Path: "/user/dashboard/"}
+			http.SetCookie(w, cookie)
+		}
 	}
-
-	var imageNameA string
-	if file != nil {
-
-		// Check weather the string is same as in db
-		imageNameA = utils.StoreThisFileInBucket("group_dp_images/", groupName+userId, file)
-		defer file.Close()
-	}
-
-	data := models.GroupModel{
-		Image: imageNameA,
-		Name:  groupName,
-		About: groupAbout,
-	}
-
-	encoded, err := json.Marshal(data)
-	if err != nil {
-		panic("json encoding failed")
-	}
-
-	encoded64 := base64.StdEncoding.EncodeToString(encoded)
-
-	expire := time.Now().AddDate(0, 0, 1)
-	cookie := &http.Cookie{Name: "userGroupDetails", Value: encoded64, Expires: expire, HttpOnly: true, Path: "/user/dashboard/"}
-	http.SetCookie(w, cookie)
 
 	http.Redirect(w, r, "/user/dashboard/add-group-members", http.StatusSeeOther)
 }

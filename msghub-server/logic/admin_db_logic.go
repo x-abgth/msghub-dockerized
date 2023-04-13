@@ -31,15 +31,15 @@ func NewAdminLogic(adminRepo repository.AdminRepository, userRepo repository.Use
 	return &adminDb{adminRepository: adminRepo, userRepository: userRepo, messageRepository: messageRepo}
 }
 
-func (a *adminDb) InsertAdminLogic(username, password string) error {
-	err := a.adminRepository.InsertAdminToDb(username, password)
-	return err
+func (a *adminDb) InsertAdminLogic(username, password string) (err error) {
+	err = a.adminRepository.InsertAdminToDb(username, password)
+	return
 }
 
-func (a *adminDb) AdminLoginLogic(username, password string) error {
+func (a *adminDb) AdminLoginLogic(username, password string) (err error) {
 	data, err := a.adminRepository.LoginAdmin(username, password)
 	if err != nil {
-		return err
+		return
 	}
 
 	if data.AdminName == username {
@@ -75,31 +75,30 @@ func (a *adminDb) GetGroupsData() ([]models.GroupModel, error) {
 	return data, err
 }
 
-func (a *adminDb) BlockThisUserLogic(id, condition string) error {
-	err := a.adminRepository.AdminBlockThisUserRepo(id, condition)
+func (a *adminDb) BlockThisUserLogic(id, condition string) (err error) {
+	err = a.adminRepository.AdminBlockThisUserRepo(id, condition)
 
-	return err
+	return
 }
 
-func (a *adminDb) UnblockUserLogic(id string) error {
-	err := a.userRepository.UndoAdminBlockRepo(id)
+func (a *adminDb) UnblockUserLogic(id string) (err error) {
+	err = a.userRepository.UndoAdminBlockRepo(id)
 
-	return err
+	return
 }
 
-func (a *adminDb) BlockThisGroupLogic(id, condition string) error {
-	err := a.adminRepository.AdminBlockThisGroupRepo(id, condition)
+func (a *adminDb) BlockThisGroupLogic(id, condition string) (err error) {
+	err = a.adminRepository.AdminBlockThisGroupRepo(id, condition)
 
-	return err
+	return
 }
 
-func (a *adminDb) AdminUnBlockGroupHandler(id string) error {
-	err := a.userRepository.UnblockGroupRepo(id)
-
-	return err
+func (a *adminDb) AdminUnBlockGroupHandler(id string) (err error) {
+	err = a.userRepository.UnblockGroupRepo(id)
+	return
 }
 
-func (a *adminDb) AdminStorePersonalMessages(message models.MessageModel) error {
+func (a *adminDb) AdminStorePersonalMessages(message models.MessageModel) (err error) {
 	data := models.Message{
 		Content:     message.Content,
 		FromUserId:  message.From,
@@ -109,10 +108,6 @@ func (a *adminDb) AdminStorePersonalMessages(message models.MessageModel) error 
 		Status:      message.Status,
 	}
 
-	err := a.messageRepository.InsertMessageDataRepository(data)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	err = a.messageRepository.InsertMessageDataRepository(data)
+	return
 }
